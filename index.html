@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8">
+    <title>北野天満宮・飛梅の顕現 ARプロトタイプ (最終・完成版)</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    
+    <style>
+      /* デジタル感を消すため、VR/ARボタンを非表示に設定 */
+      a-scene .a-enter-vr-button, a-scene .a-enter-ar-button {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <a-scene
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: yes;"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+    >
+      <a-assets>
+        <img id="umeTexture" src="./ume_petal.png" crossorigin="anonymous">
+        <img id="kamonTexture" src="./kamon.png" crossorigin="anonymous">
+        <audio id="sacredAudio" src="./tenmangu_ambient.mp3" preload="auto" autoplay="false"></audio>
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <a-entity id="target0" mindar-image-target="targetIndex: 0">
+        
+        <a-entity id="manifestation" visible="false">
+
+          <a-image 
+            src="#kamonTexture" 
+            position="0 0 0.05" 
+            scale="0.8 0.8 0.8" 
+            material="transparent: true; blending: additive; opacity: 0.8;" 
+            animation="property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;">
+          </a-image>
+          <a-ring 
+            color="#FFD700" 
+            radius-inner="0.65" 
+            radius-outer="0.7" 
+            position="0 0 0.05" 
+            opacity="0.6" 
+            material="transparent: true; blending: additive; shader: flat;"
+            segments-theta="64" animation="property: rotation; to: 0 0 360; loop: true; dur: 20000; easing: linear;">
+          </a-ring>
+          <a-light type="point" color="#FFFACD" distance="1" intensity="1.5"></a-light>
+
+          <a-entity position="0 0 0.1" animation="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 8000; easing: linear;">
+            <a-image 
+              src="#umeTexture" 
+              position="0.3 0 0" 
+              scale="0.15 0.15 0.15" 
+              transparent="true" 
+              alpha-test="0.1"
+              opacity="0.8"
+              animation="property: position; from: 0.3 -0.5 0; to: 0.3 0.5 0; loop: true; dur: 8000; easing: linear;">
+            </a-image>
+          </a-entity>
+          
+          <a-entity position="0 0 0.1" animation="property: rotation; from: 0 0 0; to: 0 -360 0; loop: true; dur: 10000; easing: linear;">
+            <a-image 
+              src="#umeTexture" 
+              position="-0.3 0 0" 
+              scale="0.12 0.12 0.12" 
+              transparent="true" 
+              alpha-test="0.1"
+              opacity="0.7"
+              animation="property: position; from: -0.3 0.5 0; to: -0.3 -0.5 0; loop: true; dur: 10000; easing: linear;">
+            </a-image>
+          </a-entity>
+
+          <a-entity position="0 0 0.1" animation="property: rotation; from: 0 0 0; to: 360 0 0; loop: true; dur: 12000; easing: linear;">
+            <a-image 
+              src="#umeTexture" 
+              position="0 0 0" 
+              scale="0.1 0.1 0.1" 
+              transparent="true" 
+              alpha-test="0.1"
+              opacity="0.6"
+              animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 12000; easing: linear;">
+            </a-image>
+          </a-entity>
+
+          <a-entity position="0.1 -0.2 0.1" animation="property: rotation; from: 0 0 0; to: 360 360 0; loop: true; dur: 9000; easing: linear;">
+            <a-image 
+              src="#umeTexture" 
+              position="0 0 0" 
+              scale="0.08 0.08 0.08" 
+              transparent="true" 
+              alpha-test="0.1"
+              opacity="0.5"
+              animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 9000; easing: linear;">
+            </a-image>
+          </a-entity>
+          
+          <a-entity position="0.4 0.1 0.1" animation="property: rotation; from: 0 0 0; to: -360 0 360; loop: true; dur: 11000; easing: linear;">
+            <a-image 
+              src="#umeTexture" 
+              position="0 0 0" 
+              scale="0.18 0.18 0.18" 
+              transparent="true" 
+              alpha-test="0.1"
+              opacity="0.9"
+              animation="property: position; from: 0 0.5 0.1; to: 0 -0.5 -0.1; loop: true; dur: 11000; easing: linear;">
+            </a-image>
+          </a-entity>
+
+          <a-entity position="-0.4 -0.3 0.1" animation="property: rotation; from: 0 0 0; to: 0 360 -360; loop: true; dur: 13000; easing: linear;">
+            <a-image 
+              src="#umeTexture" 
+              position="0 0 0" 
+              scale="0.12 0.12 0.12" 
+              transparent="true" 
+              alpha-test="0.1"
+              opacity="0.7"
+              animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 13000; easing: linear;">
+            </a-image>
+          </a-entity>
+
+        </a-entity>
+
+      </a-entity>
+    </a-scene>
+
+    <script>
+      AFRAME.registerComponent('ar-control', {
+        init: function () {
+          const targetEl = document.querySelector('#target0');
+          const manifestationEl = document.querySelector('#manifestation');
+          const audioEl = document.querySelector('#sacredAudio');
+
+          // マーカー認識時の処理
+          targetEl.addEventListener('targetFound', event => {
+            console.log("北野天満宮・飛梅の顕現を検知しました。");
+            // 視覚要素を有効化
+            manifestationEl.setAttribute('visible', true);
+            // 音楽を再生 (フェードインを想定してvolume 0から開始し、スムーズに上げることも可能)
+            // ボリュームは前回の修正でOKと言われた 0.1 を維持します
+            audioEl.volume = 0.1;
+            audioEl.play().catch(error => {
+              console.log("自動再生がブロックされました。画面を一度タップしてください。");
+            });
+          });
+
+          // マーカー見失い時の処理
+          targetEl.addEventListener('targetLost', event => {
+            console.log("神霊の気配が遠のきました。");
+            // 視覚要素を非表示
+            manifestationEl.setAttribute('visible', false);
+            // 音楽を停止
+            audioEl.pause();
+            audioEl.currentTime = 0; // 最初に戻す
+          });
+        }
+          });
+
+      // A-Frameシーンが読み込まれたらar-controlコンポーネントを有効にする
+      document.querySelector('a-scene').setAttribute('ar-control', '');
+    </script>
+  </body>
+</html>
