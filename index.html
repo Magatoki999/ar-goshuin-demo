@@ -3,26 +3,18 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta charset="utf-8">
-    <title>北野天満宮・飛梅の顕現 ARプロトタイプ (最終・完成版)</title>
+    <title>北野天満宮・飛梅と祈りの鶴 ARプロトタイプ</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
     
     <style>
       a-scene .a-enter-vr-button, a-scene .a-enter-ar-button { display: none; }
-      
-      /* タップして開始するためのオーバーレイ画面のスタイル */
       #start-overlay {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(0, 0, 0, 0.8);
-        z-index: 9999;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        color: white;
-        font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif;
-        cursor: pointer;
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.85); z-index: 9999;
+        display: flex; justify-content: center; align-items: center; flex-direction: column;
+        color: white; font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; cursor: pointer;
       }
       #start-overlay h1 { font-size: 24px; font-weight: normal; margin-bottom: 10px; }
       #start-overlay p { font-size: 14px; color: #ccc; }
@@ -44,35 +36,39 @@
       <a-assets>
         <img id="umeTexture" src="./ume_petal.png" crossorigin="anonymous">
         <img id="kamonTexture" src="./kamon.png" crossorigin="anonymous">
-        <audio id="sacredAudio" src="./tenmangu_ambient.mp3" preload="auto"></audio>
+        <a-asset-item id="orizuruModel" src="./oritsuru_merrygoround.glb"></a-asset-item>
+        <audio id="sacredAudio" src="./tenmangu_ambient.mp3" preload="auto" loop></audio>
       </a-assets>
 
+      <a-light type="ambient" color="#ffffff" intensity="2.0"></a-light>
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="target0" mindar-image-target="targetIndex: 0">
         <a-entity id="manifestation" visible="false">
 
           <a-image src="#kamonTexture" position="0 0 0.05" scale="0.8 0.8 0.8" material="transparent: true; blending: additive; opacity: 0.8;" animation="property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;"></a-image>
-          <a-ring color="#FFD700" radius-inner="0.65" radius-outer="0.7" position="0 0 0.05" opacity="0.6" material="transparent: true; blending: additive; shader: flat;" segments-theta="64" animation="property: rotation; to: 0 0 360; loop: true; dur: 20000; easing: linear;"></a-ring>
+          <a-ring visible="false" color="#FFD700" radius-inner="0.65" radius-outer="0.7" position="0 0 0.05" opacity="0.6" material="transparent: true; blending: additive; shader: flat;" segments-theta="64" animation="property: rotation; to: 0 0 360; loop: true; dur: 20000; easing: linear;"></a-ring>
           <a-light type="point" color="#FFFACD" distance="1" intensity="1.5"></a-light>
 
+          <a-gltf-model src="#orizuruModel" position="0 0 0.1" scale="0.1 0.1 0.1" animation-mixer></a-gltf-model>
+          
           <a-entity position="0 0 0.1" animation="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 8000; easing: linear;">
-            <a-image src="#umeTexture" position="0.3 0 0" scale="0.15 0.15 0.15" transparent="true" alpha-test="0.1" opacity="0.8" animation="property: position; from: 0.3 -0.5 0; to: 0.3 0.5 0; loop: true; dur: 8000; easing: linear;"></a-image>
+            <a-image src="#umeTexture" position="0.3 -0.5 0" scale="0.05 0.05 0.05" transparent="true" alpha-test="0.1" opacity="0.8" animation="property: position; from: 0.3 -0.5 0; to: 0.3 0.5 0; loop: true; dur: 8000; easing: linear;"></a-image>
           </a-entity>
           <a-entity position="0 0 0.1" animation="property: rotation; from: 0 0 0; to: 0 -360 0; loop: true; dur: 10000; easing: linear;">
-            <a-image src="#umeTexture" position="-0.3 0 0" scale="0.12 0.12 0.12" transparent="true" alpha-test="0.1" opacity="0.7" animation="property: position; from: -0.3 0.5 0; to: -0.3 -0.5 0; loop: true; dur: 10000; easing: linear;"></a-image>
+            <a-image src="#umeTexture" position="-0.3 0.5 0" scale="0.04 0.04 0.04" transparent="true" alpha-test="0.1" opacity="0.7" animation="property: position; from: -0.3 0.5 0; to: -0.3 -0.5 0; loop: true; dur: 10000; easing: linear;"></a-image>
           </a-entity>
           <a-entity position="0 0 0.1" animation="property: rotation; from: 0 0 0; to: 360 0 0; loop: true; dur: 12000; easing: linear;">
-            <a-image src="#umeTexture" position="0 0 0" scale="0.1 0.1 0.1" transparent="true" alpha-test="0.1" opacity="0.6" animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 12000; easing: linear;"></a-image>
+            <a-image src="#umeTexture" position="0 -0.5 -0.1" scale="0.033 0.033 0.033" transparent="true" alpha-test="0.1" opacity="0.6" animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 12000; easing: linear;"></a-image>
           </a-entity>
           <a-entity position="0.1 -0.2 0.1" animation="property: rotation; from: 0 0 0; to: 360 360 0; loop: true; dur: 9000; easing: linear;">
-            <a-image src="#umeTexture" position="0 0 0" scale="0.08 0.08 0.08" transparent="true" alpha-test="0.1" opacity="0.5" animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 9000; easing: linear;"></a-image>
+            <a-image src="#umeTexture" position="0 -0.5 -0.1" scale="0.026 0.026 0.026" transparent="true" alpha-test="0.1" opacity="0.5" animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 9000; easing: linear;"></a-image>
           </a-entity>
           <a-entity position="0.4 0.1 0.1" animation="property: rotation; from: 0 0 0; to: -360 0 360; loop: true; dur: 11000; easing: linear;">
-            <a-image src="#umeTexture" position="0 0 0" scale="0.18 0.18 0.18" transparent="true" alpha-test="0.1" opacity="0.9" animation="property: position; from: 0 0.5 0.1; to: 0 -0.5 -0.1; loop: true; dur: 11000; easing: linear;"></a-image>
+            <a-image src="#umeTexture" position="0 0.5 0.1" scale="0.06 0.06 0.06" transparent="true" alpha-test="0.1" opacity="0.9" animation="property: position; from: 0 0.5 0.1; to: 0 -0.5 -0.1; loop: true; dur: 11000; easing: linear;"></a-image>
           </a-entity>
           <a-entity position="-0.4 -0.3 0.1" animation="property: rotation; from: 0 0 0; to: 0 360 -360; loop: true; dur: 13000; easing: linear;">
-            <a-image src="#umeTexture" position="0 0 0" scale="0.12 0.12 0.12" transparent="true" alpha-test="0.1" opacity="0.7" animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 13000; easing: linear;"></a-image>
+            <a-image src="#umeTexture" position="0 -0.5 -0.1" scale="0.04 0.04 0.04" transparent="true" alpha-test="0.1" opacity="0.7" animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 13000; easing: linear;"></a-image>
           </a-entity>
 
         </a-entity>
@@ -82,40 +78,43 @@
     <script>
       const overlay = document.getElementById('start-overlay');
       const audioEl = document.querySelector('#sacredAudio');
+      // ★追加：見失った時のタイマーを管理する変数
+      let lostTimeout; 
 
-      // 1. タップ画面の処理（無音で音声ロックを解除する）
       overlay.addEventListener('click', function() {
-        // 音量0で一瞬だけ再生・停止し、ロックを解除する（ユーザーには聞こえない）
         audioEl.volume = 0; 
         audioEl.play().then(() => {
           audioEl.pause();
           audioEl.currentTime = 0;
         }).catch(e => console.error("音声ロック解除エラー:", e));
         
-        // オーバーレイ画面を非表示にする
         overlay.style.display = 'none';
       });
 
-      // 2. ARマーカー認識の処理
       AFRAME.registerComponent('ar-control', {
         init: function () {
           const targetEl = document.querySelector('#target0');
           const manifestationEl = document.querySelector('#manifestation');
 
-          // マーカーを認識した時
           targetEl.addEventListener('targetFound', event => {
+            // ★追加：見失いタイマーが動いていたらキャンセルする（復帰処理）
+            if (lostTimeout) {
+              clearTimeout(lostTimeout);
+              lostTimeout = null;
+            }
             manifestationEl.setAttribute('visible', true);
-            // ここで初めて本来の音量(0.1)に戻し、再生を開始する
             audioEl.volume = 0.1;
             audioEl.play(); 
           });
 
-          // マーカーを見失った時
           targetEl.addEventListener('targetLost', event => {
-            manifestationEl.setAttribute('visible', false);
-            // 音を停止し、頭出ししておく
-            audioEl.pause();
-            audioEl.currentTime = 0;
+            // ★変更：すぐには消さず、3000ミリ秒（3秒）待ってから消す
+            lostTimeout = setTimeout(() => {
+              manifestationEl.setAttribute('visible', false);
+              audioEl.pause();
+              // 音楽の頭出しは好みに応じて（今回はそのまま再開するようコメントアウト推奨）
+              // audioEl.currentTime = 0; 
+            }, 3000); // ここの数字（ミリ秒）で待つ長さを調整できます
           });
         }
       });
