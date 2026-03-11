@@ -40,7 +40,6 @@
         color: white; font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; text-align: center;
       }
       #result-modal p { font-size: 14px; margin-bottom: 15px; letter-spacing: 1px; color: #ccc;}
-      /* スマホ画面で画像全体が見えるように調整 */
       #result-image { max-width: 90%; max-height: 75%; border: 2px solid #D4AF37; box-shadow: 0 0 20px rgba(212, 175, 55, 0.3); object-fit: contain;}
       #close-modal { margin-top: 25px; padding: 10px 40px; border: 1px solid #fff; border-radius: 20px; cursor: pointer; font-size: 14px; }
     </style>
@@ -117,6 +116,8 @@
         <audio id="sacredAudio" src="./tenmangu_ambient.mp3" preload="auto" loop></audio>
       </a-assets>
 
+      <a-light id="ambient-light" type="ambient" color="#ffffff" intensity="2.0"></a-light>
+      
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="target0" mindar-image-target="targetIndex: 0">
@@ -193,28 +194,23 @@
       });
       document.querySelector('a-scene').setAttribute('ar-control', '');
 
-      // ★抜本的修正: 画面の見た目を正確にキャプチャするロジック
       captureBtn.addEventListener('click', () => {
         const sceneEl = document.querySelector('a-scene');
         const aframeCanvas = sceneEl.canvas;
         const video = document.querySelector('video');
 
-        // ★魔法のコード: 写真を撮る直前に、強制的にARを再描画させて透明になるのを防ぐ
         sceneEl.renderer.render(sceneEl.object3D, sceneEl.camera);
 
-        // ★スマホの実際の画面サイズを取得してキャンバスを作る
         const w = window.innerWidth;
         const h = window.innerHeight;
         
         const canvas = document.createElement('canvas');
-        // スマホの解像度（Retinaなど）に合わせて高画質化
         const dpr = window.devicePixelRatio || 1;
         canvas.width = w * dpr;
         canvas.height = h * dpr;
         const ctx = canvas.getContext('2d');
-        ctx.scale(dpr, dpr); // 描画サイズを調整
+        ctx.scale(dpr, dpr);
 
-        // ① 現実の風景（カメラ）を画面いっぱいに描画
         if (video) {
           const videoRatio = video.videoWidth / video.videoHeight;
           const screenRatio = w / h;
@@ -233,17 +229,14 @@
           ctx.drawImage(video, startX, startY, drawWidth, drawHeight);
         }
 
-        // ② AR空間（折り鶴・梅・墨など）を重ねる
         if (aframeCanvas) {
           ctx.drawImage(aframeCanvas, 0, 0, w, h);
         }
 
-        // ③ 文字を見やすくするための上下の黒いグラデーション（スマホの縦横比に合わせたサイズ）
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(0, 0, w, 100); 
         ctx.fillRect(0, h - 100, w, 100); 
 
-        // ④ 証拠となるテキスト（スマホの画面幅に合わせたフォントサイズ）
         ctx.fillStyle = '#FFF';
         ctx.textAlign = 'center';
         
@@ -258,13 +251,23 @@
         ctx.font = 'italic 16px "Yu Mincho", "Hiragino Mincho ProN", serif';
         ctx.fillText('神域の空気と祈りをここに留める', w / 2, h - 45);
 
-        // 画像に変換して表示
         resultImage.src = canvas.toDataURL('image/jpeg', 0.9);
         resultModal.style.display = 'flex';
       });
 
       closeModal.addEventListener('click', () => {
         resultModal.style.display = 'none';
+      });
+
+      // ブラウザがバックグラウンドに回った時の音漏れ防止処理
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          audioEl.pause();
+        } else {
+          if (isTracking) {
+            audioEl.play().catch(e => console.warn("音声再開スキップ:", e));
+          }
+        }
       });
     </script>
   </body>
