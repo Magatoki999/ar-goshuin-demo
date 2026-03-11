@@ -9,21 +9,96 @@
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
     
     <style>
+      /* デフォルトのVR/ARボタンを非表示 */
       a-scene .a-enter-vr-button, a-scene .a-enter-ar-button { display: none; }
       
-      /* ★変更：フェードアウトのアニメーション（transition）を追加し、少し厳かな色合いに */
+      /* スタート画面のオーバーレイUI */
       #start-overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         background-color: rgba(0, 0, 0, 0.9); 
         z-index: 9999;
         display: flex; justify-content: center; align-items: center; flex-direction: column;
         color: white; font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; cursor: pointer;
-        transition: opacity 1.5s ease; /* 1.5秒かけてゆっくり透明になる設定 */
+        transition: opacity 1.5s ease;
         text-align: center;
       }
       #start-overlay h1 { font-size: 26px; font-weight: normal; margin-bottom: 20px; letter-spacing: 2px;}
       #start-overlay p { font-size: 15px; color: #ddd; line-height: 1.8; }
     </style>
+
+    <script>
+      AFRAME.registerComponent('petal-system', {
+        schema: {
+          count: {type: 'int', default: 40},       // 花びらの枚数
+          texture: {type: 'string', default: '#umeTexture'},
+          area: {type: 'number', default: 0.8}     // 舞う範囲
+        },
+        init: function () {
+          this.petals = [];
+          for (let i = 0; i < this.data.count; i++) {
+            let el = document.createElement('a-image');
+            el.setAttribute('src', this.data.texture);
+            let size = Math.random() * 0.03 + 0.02; 
+            el.setAttribute('scale', `${size} ${size} ${size}`);
+            el.setAttribute('transparent', 'true');
+            el.setAttribute('alpha-test', '0.1');
+            this.el.appendChild(el);
+            
+            this.petals.push({
+              el: el,
+              y: (Math.random() - 0.5) * 2,
+              radius: Math.random() * this.data.area + 0.1,
+              angle: Math.random() * Math.PI * 2,
+              speedY: Math.random() * 0.002 + 0.001,
+              speedAngle: (Math.random() - 0.5) * 0.02,
+              rotX: Math.random() * 360, rotY: Math.random() * 360, rotZ: Math.random() * 360,
+              rotSpeedX: (Math.random() - 0.5) * 5, rotSpeedY: (Math.random() - 0.5) * 5, rotSpeedZ: (Math.random() - 0.5) * 5
+            });
+          }
+        },
+        tick: function (time, timeDelta) {
+          this.petals.forEach(p => {
+            p.angle += p.speedAngle;
+            p.y += p.speedY;
+            if (p.y > 1.5) p.y = -0.5; // 上まで行ったら下に戻す
+            let x = Math.cos(p.angle) * p.radius;
+            let z = Math.sin(p.angle) * p.radius;
+            p.el.setAttribute('position', `${x} ${p.y} ${z}`);
+            p.rotX += p.rotSpeedX; p.rotY += p.rotSpeedY; p.rotZ += p.rotSpeedZ;
+            p.el.setAttribute('rotation', `${p.rotX} ${p.rotY} ${p.rotZ}`);
+          });
+        }
+      });
+    </script>
+
+    <script>
+      AFRAME.registerComponent('boiling-effect', {
+        schema: { 
+          intensity: {type: 'number', default: 0.0015}, // ゆらぎの強さ（距離）
+          speed: {type: 'number', default: 100}         // ゆらぎの更新頻度（ミリ秒。100=秒間10コマ風）
+        },
+        init: function() {
+          this.lastTime = 0;
+          // 初期位置を記憶
+          this.baseX = this.el.object3D.position.x;
+          this.baseY = this.el.object3D.position.y;
+        },
+        tick: function(time) {
+          if (time - this.lastTime < this.data.speed) return;
+          this.lastTime = time;
+          
+          // 微細なXY座標のズレを計算
+          let dx = (Math.random() - 0.5) * this.data.intensity;
+          let dy = (Math.random() - 0.5) * this.data.intensity;
+          // 微細な回転（Z軸）のズレを計算
+          let dr = (Math.random() - 0.5) * 0.01; 
+          
+          this.el.object3D.position.x = this.baseX + dx;
+          this.el.object3D.position.y = this.baseY + dy;
+          this.el.object3D.rotation.z = dr;
+        }
+      });
+    </script>
   </head>
   <body>
     <div id="start-overlay">
@@ -41,6 +116,7 @@
       <a-assets>
         <img id="umeTexture" src="./ume_petal.png" crossorigin="anonymous">
         <img id="kamonTexture" src="./kamon.png" crossorigin="anonymous">
+        <img id="inkAura" src="./ink_aura.png" crossorigin="anonymous"> 
         <a-asset-item id="orizuruModel" src="./oritsuru_merrygoround.glb"></a-asset-item>
         <audio id="sacredAudio" src="./tenmangu_ambient.mp3" preload="auto" loop></audio>
       </a-assets>
@@ -51,30 +127,16 @@
       <a-entity id="target0" mindar-image-target="targetIndex: 0">
         <a-entity id="manifestation" visible="false">
 
-          <a-image src="#kamonTexture" position="0 0 0.05" scale="0.8 0.8 0.8" material="transparent: true; blending: additive; opacity: 0.8;" animation="property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;"></a-image>
-          <a-ring visible="false" color="#FFD700" radius-inner="0.65" radius-outer="0.7" position="0 0 0.05" opacity="0.6" material="transparent: true; blending: additive; shader: flat;" segments-theta="64" animation="property: rotation; to: 0 0 360; loop: true; dur: 20000; easing: linear;"></a-ring>
-          <a-light type="point" color="#FFFACD" distance="1" intensity="1.5"></a-light>
+          <a-image id="inkManifestation" src="#inkAura" position="0 0 0.02" scale="1.5 1.5 1" material="transparent: true; opacity: 0;" boiling-effect="intensity: 0.002; speed: 120;"></a-image>
+
+          <a-entity position="0 0 0.05" animation="property: scale; from: 0.75 0.75 0.75; to: 0.85 0.85 0.85; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine;">
+            <a-image src="#kamonTexture" scale="1 1 1" material="transparent: true; blending: additive; opacity: 0.8;" 
+                     animation="property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;"></a-image>
+          </a-entity>
 
           <a-gltf-model src="#orizuruModel" position="0 0 0.1" scale="0.1 0.1 0.1" animation-mixer></a-gltf-model>
           
-          <a-entity position="0 0 0.1" animation="property: rotation; from: 0 0 0; to: 0 360 0; loop: true; dur: 8000; easing: linear;">
-            <a-image src="#umeTexture" position="0.3 -0.5 0" scale="0.05 0.05 0.05" transparent="true" alpha-test="0.1" opacity="0.8" animation="property: position; from: 0.3 -0.5 0; to: 0.3 0.5 0; loop: true; dur: 8000; easing: linear;"></a-image>
-          </a-entity>
-          <a-entity position="0 0 0.1" animation="property: rotation; from: 0 0 0; to: 0 -360 0; loop: true; dur: 10000; easing: linear;">
-            <a-image src="#umeTexture" position="-0.3 0.5 0" scale="0.04 0.04 0.04" transparent="true" alpha-test="0.1" opacity="0.7" animation="property: position; from: -0.3 0.5 0; to: -0.3 -0.5 0; loop: true; dur: 10000; easing: linear;"></a-image>
-          </a-entity>
-          <a-entity position="0 0 0.1" animation="property: rotation; from: 0 0 0; to: 360 0 0; loop: true; dur: 12000; easing: linear;">
-            <a-image src="#umeTexture" position="0 -0.5 -0.1" scale="0.033 0.033 0.033" transparent="true" alpha-test="0.1" opacity="0.6" animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 12000; easing: linear;"></a-image>
-          </a-entity>
-          <a-entity position="0.1 -0.2 0.1" animation="property: rotation; from: 0 0 0; to: 360 360 0; loop: true; dur: 9000; easing: linear;">
-            <a-image src="#umeTexture" position="0 -0.5 -0.1" scale="0.026 0.026 0.026" transparent="true" alpha-test="0.1" opacity="0.5" animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 9000; easing: linear;"></a-image>
-          </a-entity>
-          <a-entity position="0.4 0.1 0.1" animation="property: rotation; from: 0 0 0; to: -360 0 360; loop: true; dur: 11000; easing: linear;">
-            <a-image src="#umeTexture" position="0 0.5 0.1" scale="0.06 0.06 0.06" transparent="true" alpha-test="0.1" opacity="0.9" animation="property: position; from: 0 0.5 0.1; to: 0 -0.5 -0.1; loop: true; dur: 11000; easing: linear;"></a-image>
-          </a-entity>
-          <a-entity position="-0.4 -0.3 0.1" animation="property: rotation; from: 0 0 0; to: 0 360 -360; loop: true; dur: 13000; easing: linear;">
-            <a-image src="#umeTexture" position="0 -0.5 -0.1" scale="0.04 0.04 0.04" transparent="true" alpha-test="0.1" opacity="0.7" animation="property: position; from: 0 -0.5 -0.1; to: 0 0.5 0.1; loop: true; dur: 13000; easing: linear;"></a-image>
-          </a-entity>
+          <a-entity position="0 0 0.1" petal-system="count: 40; area: 0.8;"></a-entity>
 
         </a-entity>
       </a-entity>
@@ -83,52 +145,88 @@
     <script>
       const overlay = document.getElementById('start-overlay');
       const audioEl = document.querySelector('#sacredAudio');
-      // 見失った時のタイマーを管理する変数
-      let lostTimeout; 
+      const targetEl = document.querySelector('#target0');
+      const manifestationEl = document.querySelector('#manifestation');
+      const inkManifestationEl = document.querySelector('#inkManifestation');
 
+      let lostTimeout; 
+      let isTracking = false; 
+
+      // スタート画面タップ時の処理（画面フリーズ対策版）
       overlay.addEventListener('click', function() {
-        audioEl.volume = 0; 
-        audioEl.play().then(() => {
-          audioEl.pause();
-          audioEl.currentTime = 0;
-        }).catch(e => console.error("音声ロック解除エラー:", e));
-        
-        // ★変更：タップされたら、透明度を0にしてフェードアウト開始
+        // 先に確実にUIをフェードアウトさせる
         overlay.style.opacity = '0';
-        
-        // ★変更：1.5秒（1500ミリ秒）後に完全に非表示にして裏側に隠す
-        setTimeout(() => {
-          overlay.style.display = 'none';
-        }, 1500);
+        setTimeout(() => { overlay.style.display = 'none'; }, 1500);
+
+        // その後、音響のロックを解除
+        try {
+          audioEl.volume = 0; 
+          audioEl.play().then(() => {
+            audioEl.pause();
+            audioEl.currentTime = 0;
+          }).catch(e => console.warn("音声ロック解除スキップ（iOS仕様等による）:", e));
+        } catch(e) {
+          console.error("音声エラー:", e);
+        }
       });
 
+      // ARトラッキング制御
       AFRAME.registerComponent('ar-control', {
         init: function () {
-          const targetEl = document.querySelector('#target0');
-          const manifestationEl = document.querySelector('#manifestation');
-
           targetEl.addEventListener('targetFound', event => {
-            // 見失いタイマーが動いていたらキャンセルする（復帰処理）
-            if (lostTimeout) {
-              clearTimeout(lostTimeout);
-              lostTimeout = null;
-            }
+            isTracking = true;
+            if (lostTimeout) { clearTimeout(lostTimeout); lostTimeout = null; }
+            
             manifestationEl.setAttribute('visible', true);
-            audioEl.volume = 0.1;
+            
+            // 墨のにじみエフェクトを開始
+            this.playInkSequence();
+            
+            // 音楽を再生
+            audioEl.volume = 0.3;
             audioEl.play(); 
           });
 
           targetEl.addEventListener('targetLost', event => {
-            // すぐには消さず、3000ミリ秒（3秒）待ってから消す
+            isTracking = false;
+            
+            // 少し待ってからオブジェクトを非表示にする
             lostTimeout = setTimeout(() => {
               manifestationEl.setAttribute('visible', false);
+              this.resetInkManifestation();
               audioEl.pause();
-              // 音楽の頭出しは好みに応じて（今回はそのまま再開するようコメントアウト推奨）
-              // audioEl.currentTime = 0; 
             }, 3000); 
           });
+        },
+        
+        // 墨の「にじみ出る → 消える」シーケンス
+        playInkSequence: function () {
+          this.resetInkManifestation(); // 状態をクリア
+
+          // ① 2秒かけてゆっくり表示
+          inkManifestationEl.setAttribute('animation__bleed', 'property: material.opacity; from: 0; to: 0.8; dur: 2000; easing: easeOutCubic;');
+
+          // ② 5秒後（表示開始から）にフェードアウト開始
+          this.fadeOutTimeout = setTimeout(() => {
+            if (isTracking) {
+              inkManifestationEl.setAttribute('animation__fadeout', 'property: material.opacity; from: 0.8; to: 0; dur: 4000; easing: easeInCubic;');
+            }
+          }, 5000);
+        },
+        
+        // 墨の状態をリセット
+        resetInkManifestation: function () {
+          if (this.fadeOutTimeout) {
+            clearTimeout(this.fadeOutTimeout);
+            this.fadeOutTimeout = null;
+          }
+          inkManifestationEl.removeAttribute('animation__bleed');
+          inkManifestationEl.removeAttribute('animation__fadeout');
+          inkManifestationEl.setAttribute('material.opacity', 0);
         }
       });
+      
+      // シーンにコンポーネントを適用
       document.querySelector('a-scene').setAttribute('ar-control', '');
     </script>
   </body>
