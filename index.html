@@ -136,6 +136,41 @@
     </a-scene>
 
     <script>
+      // ★追加：時間帯に応じた設定を返す関数
+      function getTimeDependentSettings() {
+        const hour = new Date().getHours();
+        let lightColor, message;
+
+        if (hour >= 5 && hour < 11) {
+          // 朝 (5:00 - 10:59)
+          lightColor = "#e6f0ff"; // 少し青みがかった清冽な白
+          message = "朝霧に包まれた清冽な祈り";
+        } else if (hour >= 11 && hour < 16) {
+          // 昼 (11:00 - 15:59)
+          lightColor = "#ffffff"; // 純白
+          message = "白日の光に溶け込む祈り";
+        } else if (hour >= 16 && hour < 19) {
+          // 夕方 (16:00 - 18:59)
+          lightColor = "#ffd7a0"; // 黄金色・オレンジ
+          message = "黄昏時に捧げる静かな祈り";
+        } else {
+          // 夜 (19:00 - 4:59)
+          lightColor = "#4a548c"; // 深い青・紫
+          message = "月明かりに照らされた夜の祈り";
+        }
+        
+        return { lightColor, message };
+      }
+
+      // ページ読み込み時にAR空間の光の色を設定
+      document.addEventListener("DOMContentLoaded", () => {
+        const settings = getTimeDependentSettings();
+        const lightEl = document.getElementById('ambient-light');
+        if (lightEl) {
+          lightEl.setAttribute('color', settings.lightColor);
+        }
+      });
+
       const overlay = document.getElementById('start-overlay');
       const audioEl = document.querySelector('#sacredAudio');
       const targetEl = document.querySelector('#target0');
@@ -248,8 +283,10 @@
         ctx.font = '16px "Yu Mincho", "Hiragino Mincho ProN", serif';
         ctx.fillText(dateStr, w / 2, 75);
 
+        // ★変更：時間帯によって変わるメッセージを描画
+        const settings = getTimeDependentSettings();
         ctx.font = 'italic 16px "Yu Mincho", "Hiragino Mincho ProN", serif';
-        ctx.fillText('神域の空気と祈りをここに留める', w / 2, h - 45);
+        ctx.fillText(settings.message, w / 2, h - 45);
 
         resultImage.src = canvas.toDataURL('image/jpeg', 0.9);
         resultModal.style.display = 'flex';
@@ -259,7 +296,6 @@
         resultModal.style.display = 'none';
       });
 
-      // ブラウザがバックグラウンドに回った時の音漏れ防止処理
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
           audioEl.pause();
