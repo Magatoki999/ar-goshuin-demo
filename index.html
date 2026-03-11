@@ -3,16 +3,14 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta charset="utf-8">
-    <title>飛梅と祈りの鶴 ARプロトタイプ</title>
+    <title>北野天満宮・飛梅と祈りの鶴 ARプロトタイプ</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
     
     <style>
-      /* デフォルトのVR/ARボタンを非表示 */
       a-scene .a-enter-vr-button, a-scene .a-enter-ar-button { display: none; }
       
-      /* スタート画面のオーバーレイUI */
       #start-overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         background-color: rgba(0, 0, 0, 0.9); 
@@ -24,15 +22,32 @@
       }
       #start-overlay h1 { font-size: 26px; font-weight: normal; margin-bottom: 20px; letter-spacing: 2px;}
       #start-overlay p { font-size: 15px; color: #ddd; line-height: 1.8; }
+
+      #capture-btn {
+        display: none; position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+        z-index: 9998; background: rgba(212, 175, 55, 0.9); color: #000; 
+        padding: 15px 30px; border-radius: 30px; border: 1px solid #FFF;
+        font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; font-size: 16px; font-weight: bold;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer;
+        transition: background 0.3s;
+      }
+      #capture-btn:active { background: rgba(255, 215, 0, 1); }
+
+      #result-modal {
+        display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.95); z-index: 10000;
+        flex-direction: column; align-items: center; justify-content: center;
+        color: white; font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; text-align: center;
+      }
+      #result-modal p { font-size: 14px; margin-bottom: 15px; letter-spacing: 1px; color: #ccc;}
+      /* スマホ画面で画像全体が見えるように調整 */
+      #result-image { max-width: 90%; max-height: 75%; border: 2px solid #D4AF37; box-shadow: 0 0 20px rgba(212, 175, 55, 0.3); object-fit: contain;}
+      #close-modal { margin-top: 25px; padding: 10px 40px; border: 1px solid #fff; border-radius: 20px; cursor: pointer; font-size: 14px; }
     </style>
 
     <script>
       AFRAME.registerComponent('petal-system', {
-        schema: {
-          count: {type: 'int', default: 40},       // 花びらの枚数
-          texture: {type: 'string', default: '#umeTexture'},
-          area: {type: 'number', default: 0.8}     // 舞う範囲
-        },
+        schema: { count: {type: 'int', default: 40}, texture: {type: 'string', default: '#umeTexture'}, area: {type: 'number', default: 0.8} },
         init: function () {
           this.petals = [];
           for (let i = 0; i < this.data.count; i++) {
@@ -40,17 +55,11 @@
             el.setAttribute('src', this.data.texture);
             let size = Math.random() * 0.03 + 0.02; 
             el.setAttribute('scale', `${size} ${size} ${size}`);
-            el.setAttribute('transparent', 'true');
-            el.setAttribute('alpha-test', '0.1');
+            el.setAttribute('transparent', 'true'); el.setAttribute('alpha-test', '0.1');
             this.el.appendChild(el);
-            
             this.petals.push({
-              el: el,
-              y: (Math.random() - 0.5) * 2,
-              radius: Math.random() * this.data.area + 0.1,
-              angle: Math.random() * Math.PI * 2,
-              speedY: Math.random() * 0.002 + 0.001,
-              speedAngle: (Math.random() - 0.5) * 0.02,
+              el: el, y: (Math.random() - 0.5) * 2, radius: Math.random() * this.data.area + 0.1, angle: Math.random() * Math.PI * 2,
+              speedY: Math.random() * 0.002 + 0.001, speedAngle: (Math.random() - 0.5) * 0.02,
               rotX: Math.random() * 360, rotY: Math.random() * 360, rotZ: Math.random() * 360,
               rotSpeedX: (Math.random() - 0.5) * 5, rotSpeedY: (Math.random() - 0.5) * 5, rotSpeedZ: (Math.random() - 0.5) * 5
             });
@@ -58,44 +67,25 @@
         },
         tick: function (time, timeDelta) {
           this.petals.forEach(p => {
-            p.angle += p.speedAngle;
-            p.y += p.speedY;
-            if (p.y > 1.5) p.y = -0.5; // 上まで行ったら下に戻す
-            let x = Math.cos(p.angle) * p.radius;
-            let z = Math.sin(p.angle) * p.radius;
+            p.angle += p.speedAngle; p.y += p.speedY; if (p.y > 1.5) p.y = -0.5;
+            let x = Math.cos(p.angle) * p.radius; let z = Math.sin(p.angle) * p.radius;
             p.el.setAttribute('position', `${x} ${p.y} ${z}`);
             p.rotX += p.rotSpeedX; p.rotY += p.rotSpeedY; p.rotZ += p.rotSpeedZ;
             p.el.setAttribute('rotation', `${p.rotX} ${p.rotY} ${p.rotZ}`);
           });
         }
       });
-    </script>
 
-    <script>
       AFRAME.registerComponent('boiling-effect', {
-        schema: { 
-          intensity: {type: 'number', default: 0.0015}, // ゆらぎの強さ（距離）
-          speed: {type: 'number', default: 100}         // ゆらぎの更新頻度（ミリ秒。100=秒間10コマ風）
-        },
+        schema: { intensity: {type: 'number', default: 0.0015}, speed: {type: 'number', default: 100} },
         init: function() {
-          this.lastTime = 0;
-          // 初期位置を記憶
-          this.baseX = this.el.object3D.position.x;
-          this.baseY = this.el.object3D.position.y;
+          this.lastTime = 0; this.baseX = this.el.object3D.position.x; this.baseY = this.el.object3D.position.y;
         },
         tick: function(time) {
           if (time - this.lastTime < this.data.speed) return;
           this.lastTime = time;
-          
-          // 微細なXY座標のズレを計算
-          let dx = (Math.random() - 0.5) * this.data.intensity;
-          let dy = (Math.random() - 0.5) * this.data.intensity;
-          // 微細な回転（Z軸）のズレを計算
-          let dr = (Math.random() - 0.5) * 0.01; 
-          
-          this.el.object3D.position.x = this.baseX + dx;
-          this.el.object3D.position.y = this.baseY + dy;
-          this.el.object3D.rotation.z = dr;
+          let dx = (Math.random() - 0.5) * this.data.intensity; let dy = (Math.random() - 0.5) * this.data.intensity; let dr = (Math.random() - 0.5) * 0.01; 
+          this.el.object3D.position.x = this.baseX + dx; this.el.object3D.position.y = this.baseY + dy; this.el.object3D.rotation.z = dr;
         }
       });
     </script>
@@ -106,12 +96,18 @@
       <p>スマートフォンを持ったまま軽く一礼し、<br>画面をタップしてください</p>
     </div>
 
+    <div id="capture-btn">参拝の証を刻む</div>
+
+    <div id="result-modal">
+      <p>画像を長押しして保存してください</p>
+      <img id="result-image" src="" alt="参拝の証">
+      <div id="close-modal">戻る</div>
+    </div>
+
     <a-scene
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: yes;"
-      color-space="sRGB"
-      renderer="colorManagement: true, physicallyCorrectLights"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
+      color-space="sRGB" renderer="colorManagement: true; preserveDrawingBuffer: true;"
+      vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
     >
       <a-assets>
         <img id="umeTexture" src="./ume_petal.png" crossorigin="anonymous">
@@ -121,23 +117,19 @@
         <audio id="sacredAudio" src="./tenmangu_ambient.mp3" preload="auto" loop></audio>
       </a-assets>
 
-      <a-light type="ambient" color="#ffffff" intensity="2.0"></a-light>
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="target0" mindar-image-target="targetIndex: 0">
         <a-entity id="manifestation" visible="false">
-
-          <a-image id="inkManifestation" src="#inkAura" position="0 0 0.02" scale="1.5 1.5 1" material="transparent: true; opacity: 0;" boiling-effect="intensity: 0.002; speed: 120;"></a-image>
+          
+          <a-image id="inkManifestation" src="#inkAura" position="0 0 0.02" scale="1.5 1.5 1" material="shader: flat; transparent: true; depthWrite: false; opacity: 0;" boiling-effect="intensity: 0.002; speed: 120;"></a-image>
 
           <a-entity position="0 0 0.05" animation="property: scale; from: 0.75 0.75 0.75; to: 0.85 0.85 0.85; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine;">
-            <a-image src="#kamonTexture" scale="1 1 1" material="transparent: true; blending: additive; opacity: 0.8;" 
-                     animation="property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;"></a-image>
+            <a-image src="#kamonTexture" scale="1 1 1" material="transparent: true; blending: additive; opacity: 0.8;" animation="property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;"></a-image>
           </a-entity>
 
           <a-gltf-model src="#orizuruModel" position="0 0 0.1" scale="0.1 0.1 0.1" animation-mixer></a-gltf-model>
-          
           <a-entity position="0 0 0.1" petal-system="count: 40; area: 0.8;"></a-entity>
-
         </a-entity>
       </a-entity>
     </a-scene>
@@ -148,49 +140,37 @@
       const targetEl = document.querySelector('#target0');
       const manifestationEl = document.querySelector('#manifestation');
       const inkManifestationEl = document.querySelector('#inkManifestation');
+      
+      const captureBtn = document.getElementById('capture-btn');
+      const resultModal = document.getElementById('result-modal');
+      const resultImage = document.getElementById('result-image');
+      const closeModal = document.getElementById('close-modal');
 
       let lostTimeout; 
       let isTracking = false; 
 
-      // スタート画面タップ時の処理（画面フリーズ対策版）
       overlay.addEventListener('click', function() {
-        // 先に確実にUIをフェードアウトさせる
         overlay.style.opacity = '0';
         setTimeout(() => { overlay.style.display = 'none'; }, 1500);
-
-        // その後、音響のロックを解除
         try {
-          audioEl.volume = 0; 
-          audioEl.play().then(() => {
-            audioEl.pause();
-            audioEl.currentTime = 0;
-          }).catch(e => console.warn("音声ロック解除スキップ（iOS仕様等による）:", e));
-        } catch(e) {
-          console.error("音声エラー:", e);
-        }
+          audioEl.volume = 0; audioEl.play().then(() => { audioEl.pause(); audioEl.currentTime = 0; });
+        } catch(e) {}
       });
 
-      // ARトラッキング制御
       AFRAME.registerComponent('ar-control', {
         init: function () {
           targetEl.addEventListener('targetFound', event => {
             isTracking = true;
             if (lostTimeout) { clearTimeout(lostTimeout); lostTimeout = null; }
-            
             manifestationEl.setAttribute('visible', true);
-            
-            // 墨のにじみエフェクトを開始
+            captureBtn.style.display = 'block'; 
             this.playInkSequence();
-            
-            // 音楽を再生
-            audioEl.volume = 0.3;
-            audioEl.play(); 
+            audioEl.volume = 0.3; audioEl.play(); 
           });
 
           targetEl.addEventListener('targetLost', event => {
             isTracking = false;
-            
-            // 少し待ってからオブジェクトを非表示にする
+            captureBtn.style.display = 'none'; 
             lostTimeout = setTimeout(() => {
               manifestationEl.setAttribute('visible', false);
               this.resetInkManifestation();
@@ -198,36 +178,94 @@
             }, 3000); 
           });
         },
-        
-        // 墨の「にじみ出る → 消える」シーケンス
         playInkSequence: function () {
-          this.resetInkManifestation(); // 状態をクリア
-
-          // ① 2秒かけてゆっくり表示
+          this.resetInkManifestation();
           inkManifestationEl.setAttribute('animation__bleed', 'property: material.opacity; from: 0; to: 0.8; dur: 2000; easing: easeOutCubic;');
-
-          // ② 5秒後（表示開始から）にフェードアウト開始
           this.fadeOutTimeout = setTimeout(() => {
-            if (isTracking) {
-              inkManifestationEl.setAttribute('animation__fadeout', 'property: material.opacity; from: 0.8; to: 0; dur: 4000; easing: easeInCubic;');
-            }
+            if (isTracking) { inkManifestationEl.setAttribute('animation__fadeout', 'property: material.opacity; from: 0.8; to: 0; dur: 4000; easing: easeInCubic;'); }
           }, 5000);
         },
-        
-        // 墨の状態をリセット
         resetInkManifestation: function () {
-          if (this.fadeOutTimeout) {
-            clearTimeout(this.fadeOutTimeout);
-            this.fadeOutTimeout = null;
-          }
-          inkManifestationEl.removeAttribute('animation__bleed');
-          inkManifestationEl.removeAttribute('animation__fadeout');
+          if (this.fadeOutTimeout) { clearTimeout(this.fadeOutTimeout); this.fadeOutTimeout = null; }
+          inkManifestationEl.removeAttribute('animation__bleed'); inkManifestationEl.removeAttribute('animation__fadeout');
           inkManifestationEl.setAttribute('material.opacity', 0);
         }
       });
-      
-      // シーンにコンポーネントを適用
       document.querySelector('a-scene').setAttribute('ar-control', '');
+
+      // ★抜本的修正: 画面の見た目を正確にキャプチャするロジック
+      captureBtn.addEventListener('click', () => {
+        const sceneEl = document.querySelector('a-scene');
+        const aframeCanvas = sceneEl.canvas;
+        const video = document.querySelector('video');
+
+        // ★魔法のコード: 写真を撮る直前に、強制的にARを再描画させて透明になるのを防ぐ
+        sceneEl.renderer.render(sceneEl.object3D, sceneEl.camera);
+
+        // ★スマホの実際の画面サイズを取得してキャンバスを作る
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        
+        const canvas = document.createElement('canvas');
+        // スマホの解像度（Retinaなど）に合わせて高画質化
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr); // 描画サイズを調整
+
+        // ① 現実の風景（カメラ）を画面いっぱいに描画
+        if (video) {
+          const videoRatio = video.videoWidth / video.videoHeight;
+          const screenRatio = w / h;
+          let drawWidth, drawHeight, startX, startY;
+          if (videoRatio > screenRatio) {
+              drawHeight = h;
+              drawWidth = video.videoWidth * (h / video.videoHeight);
+              startX = (w - drawWidth) / 2;
+              startY = 0;
+          } else {
+              drawWidth = w;
+              drawHeight = video.videoHeight * (w / video.videoWidth);
+              startX = 0;
+              startY = (h - drawHeight) / 2;
+          }
+          ctx.drawImage(video, startX, startY, drawWidth, drawHeight);
+        }
+
+        // ② AR空間（折り鶴・梅・墨など）を重ねる
+        if (aframeCanvas) {
+          ctx.drawImage(aframeCanvas, 0, 0, w, h);
+        }
+
+        // ③ 文字を見やすくするための上下の黒いグラデーション（スマホの縦横比に合わせたサイズ）
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, w, 100); 
+        ctx.fillRect(0, h - 100, w, 100); 
+
+        // ④ 証拠となるテキスト（スマホの画面幅に合わせたフォントサイズ）
+        ctx.fillStyle = '#FFF';
+        ctx.textAlign = 'center';
+        
+        ctx.font = 'bold 28px "Yu Mincho", "Hiragino Mincho ProN", serif';
+        ctx.fillText('参拝之証', w / 2, 45);
+
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+        ctx.font = '16px "Yu Mincho", "Hiragino Mincho ProN", serif';
+        ctx.fillText(dateStr, w / 2, 75);
+
+        ctx.font = 'italic 16px "Yu Mincho", "Hiragino Mincho ProN", serif';
+        ctx.fillText('神域の空気と祈りをここに留める', w / 2, h - 45);
+
+        // 画像に変換して表示
+        resultImage.src = canvas.toDataURL('image/jpeg', 0.9);
+        resultModal.style.display = 'flex';
+      });
+
+      closeModal.addEventListener('click', () => {
+        resultModal.style.display = 'none';
+      });
     </script>
   </body>
 </html>
