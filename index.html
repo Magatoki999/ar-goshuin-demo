@@ -13,12 +13,10 @@
       
       #start-overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background-color: rgba(0, 0, 0, 0.9); 
-        z-index: 9999;
+        background-color: rgba(0, 0, 0, 0.9); z-index: 9999;
         display: flex; justify-content: center; align-items: center; flex-direction: column;
         color: white; font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; cursor: pointer;
-        transition: opacity 1.5s ease;
-        text-align: center;
+        transition: opacity 1.5s ease; text-align: center;
       }
       #start-overlay h1 { font-size: 26px; font-weight: normal; margin-bottom: 20px; letter-spacing: 2px;}
       #start-overlay p { font-size: 15px; color: #ddd; line-height: 1.8; }
@@ -28,8 +26,7 @@
         z-index: 9998; background: rgba(212, 175, 55, 0.9); color: #000; 
         padding: 15px 30px; border-radius: 30px; border: 1px solid #FFF;
         font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; font-size: 16px; font-weight: bold;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer;
-        transition: background 0.3s;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; transition: background 0.3s;
       }
       #capture-btn:active { background: rgba(255, 215, 0, 1); }
 
@@ -50,10 +47,8 @@
         init: function () {
           this.petals = [];
           for (let i = 0; i < this.data.count; i++) {
-            let el = document.createElement('a-image');
-            el.setAttribute('src', this.data.texture);
-            let size = Math.random() * 0.03 + 0.02; 
-            el.setAttribute('scale', `${size} ${size} ${size}`);
+            let el = document.createElement('a-image'); el.setAttribute('src', this.data.texture);
+            let size = Math.random() * 0.03 + 0.02; el.setAttribute('scale', `${size} ${size} ${size}`);
             el.setAttribute('transparent', 'true'); el.setAttribute('alpha-test', '0.1');
             this.el.appendChild(el);
             this.petals.push({
@@ -64,7 +59,7 @@
             });
           }
         },
-        tick: function (time, timeDelta) {
+        tick: function () {
           this.petals.forEach(p => {
             p.angle += p.speedAngle; p.y += p.speedY; if (p.y > 1.5) p.y = -0.5;
             let x = Math.cos(p.angle) * p.radius; let z = Math.sin(p.angle) * p.radius;
@@ -75,11 +70,58 @@
         }
       });
 
+      AFRAME.registerComponent('rain-system', {
+        schema: { count: {type: 'int', default: 100}, area: {type: 'number', default: 1.0} },
+        init: function () {
+          this.drops = [];
+          for (let i = 0; i < this.data.count; i++) {
+            let el = document.createElement('a-entity');
+            el.setAttribute('geometry', 'primitive: plane; width: 0.002; height: 0.08');
+            el.setAttribute('material', 'color: #aaccff; shader: flat; transparent: true; opacity: 0.5');
+            this.el.appendChild(el);
+            this.drops.push({
+              el: el, x: (Math.random() - 0.5) * this.data.area, z: (Math.random() - 0.5) * this.data.area,
+              y: Math.random() * 2, speed: Math.random() * 0.03 + 0.02
+            });
+          }
+        },
+        tick: function () {
+          this.drops.forEach(p => {
+            p.y -= p.speed; if (p.y < -0.5) { p.y = 1.5; p.x = (Math.random() - 0.5) * this.data.area; p.z = (Math.random() - 0.5) * this.data.area; }
+            p.el.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
+          });
+        }
+      });
+
+      AFRAME.registerComponent('snow-system', {
+        schema: { count: {type: 'int', default: 80}, area: {type: 'number', default: 1.0} },
+        init: function () {
+          this.flakes = [];
+          for (let i = 0; i < this.data.count; i++) {
+            let el = document.createElement('a-entity');
+            let size = Math.random() * 0.005 + 0.002;
+            el.setAttribute('geometry', `primitive: circle; radius: ${size}`);
+            el.setAttribute('material', 'color: #ffffff; shader: flat; transparent: true; opacity: 0.8');
+            this.el.appendChild(el);
+            this.flakes.push({
+              el: el, x: (Math.random() - 0.5) * this.data.area, z: (Math.random() - 0.5) * this.data.area,
+              y: Math.random() * 2, speedY: Math.random() * 0.005 + 0.002,
+              sway: Math.random() * Math.PI * 2, swaySpeed: Math.random() * 0.02
+            });
+          }
+        },
+        tick: function () {
+          this.flakes.forEach(p => {
+            p.sway += p.swaySpeed; p.y -= p.speedY; p.x += Math.sin(p.sway) * 0.002;
+            if (p.y < -0.5) { p.y = 1.5; p.x = (Math.random() - 0.5) * this.data.area; }
+            p.el.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
+          });
+        }
+      });
+
       AFRAME.registerComponent('boiling-effect', {
         schema: { intensity: {type: 'number', default: 0.0015}, speed: {type: 'number', default: 100} },
-        init: function() {
-          this.lastTime = 0; this.baseX = this.el.object3D.position.x; this.baseY = this.el.object3D.position.y;
-        },
+        init: function() { this.lastTime = 0; this.baseX = this.el.object3D.position.x; this.baseY = this.el.object3D.position.y; },
         tick: function(time) {
           if (time - this.lastTime < this.data.speed) return;
           this.lastTime = time;
@@ -117,7 +159,6 @@
       </a-assets>
 
       <a-light id="ambient-light" type="ambient" color="#ffffff" intensity="2.0"></a-light>
-      
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="target0" mindar-image-target="targetIndex: 0">
@@ -130,45 +171,64 @@
           </a-entity>
 
           <a-gltf-model src="#orizuruModel" position="0 0 0.1" scale="0.1 0.1 0.1" animation-mixer></a-gltf-model>
-          <a-entity position="0 0 0.1" petal-system="count: 40; area: 0.8;"></a-entity>
+          
+          <a-entity id="effect-clear" petal-system="count: 40; area: 0.8;" visible="true"></a-entity>
+          <a-entity id="effect-rain" rain-system="count: 100; area: 0.8;" visible="false"></a-entity>
+          <a-entity id="effect-snow" snow-system="count: 80; area: 0.8;" visible="false"></a-entity>
+
         </a-entity>
       </a-entity>
     </a-scene>
 
     <script>
-      // ★追加：時間帯に応じた設定を返す関数
-      function getTimeDependentSettings() {
-        const hour = new Date().getHours();
-        let lightColor, message;
+      let currentWeather = 'clear';
 
-        if (hour >= 5 && hour < 11) {
-          // 朝 (5:00 - 10:59)
-          lightColor = "#e6f0ff"; // 少し青みがかった清冽な白
-          message = "朝霧に包まれた清冽な祈り";
-        } else if (hour >= 11 && hour < 16) {
-          // 昼 (11:00 - 15:59)
-          lightColor = "#ffffff"; // 純白
-          message = "白日の光に溶け込む祈り";
-        } else if (hour >= 16 && hour < 19) {
-          // 夕方 (16:00 - 18:59)
-          lightColor = "#ffd7a0"; // 黄金色・オレンジ
-          message = "黄昏時に捧げる静かな祈り";
-        } else {
-          // 夜 (19:00 - 4:59)
-          lightColor = "#4a548c"; // 深い青・紫
-          message = "月明かりに照らされた夜の祈り";
-        }
-        
-        return { lightColor, message };
+      // 京都の天気を裏側で取得する関数
+      function fetchWeatherBackground() {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒でタイムアウト
+
+        // 京都の緯度経度
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=35.0116&longitude=135.7681&current_weather=true', { signal: controller.signal })
+          .then(res => res.json())
+          .then(data => {
+            clearTimeout(timeoutId);
+            const code = data.current_weather.weathercode;
+            if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) currentWeather = 'rain';
+            else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) currentWeather = 'snow';
+            else currentWeather = 'clear';
+
+            document.getElementById('effect-clear').setAttribute('visible', currentWeather === 'clear');
+            document.getElementById('effect-rain').setAttribute('visible', currentWeather === 'rain');
+            document.getElementById('effect-snow').setAttribute('visible', currentWeather === 'snow');
+          })
+          .catch(e => {
+            console.warn("天気API取得スキップ（晴れとして進行）:", e);
+          });
       }
 
-      // ページ読み込み時にAR空間の光の色を設定
+      function getTimeAndWeatherSettings() {
+        const hour = new Date().getHours();
+        let lightColor, timeMsg, weatherMsg;
+
+        if (hour >= 5 && hour < 11) { lightColor = "#e6f0ff"; timeMsg = "朝霧の"; }
+        else if (hour >= 11 && hour < 16) { lightColor = "#ffffff"; timeMsg = "白日の"; }
+        else if (hour >= 16 && hour < 19) { lightColor = "#ffd7a0"; timeMsg = "黄昏時の"; }
+        else { lightColor = "#4a548c"; timeMsg = "月明かりの"; }
+
+        if (currentWeather === 'rain') weatherMsg = "雨降る神域にて";
+        else if (currentWeather === 'snow') weatherMsg = "雪化粧の神域にて";
+        else weatherMsg = "清冽なる神域にて";
+        
+        return { lightColor, message: `${timeMsg}祈り。${weatherMsg}` };
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
-        const settings = getTimeDependentSettings();
+        const settings = getTimeAndWeatherSettings();
         const lightEl = document.getElementById('ambient-light');
-        if (lightEl) {
-          lightEl.setAttribute('color', settings.lightColor);
-        }
+        if (lightEl) lightEl.setAttribute('color', settings.lightColor);
+        
+        fetchWeatherBackground();
       });
 
       const overlay = document.getElementById('start-overlay');
@@ -283,8 +343,7 @@
         ctx.font = '16px "Yu Mincho", "Hiragino Mincho ProN", serif';
         ctx.fillText(dateStr, w / 2, 75);
 
-        // ★変更：時間帯によって変わるメッセージを描画
-        const settings = getTimeDependentSettings();
+        const settings = getTimeAndWeatherSettings();
         ctx.font = 'italic 16px "Yu Mincho", "Hiragino Mincho ProN", serif';
         ctx.fillText(settings.message, w / 2, h - 45);
 
@@ -297,13 +356,8 @@
       });
 
       document.addEventListener("visibilitychange", () => {
-        if (document.hidden) {
-          audioEl.pause();
-        } else {
-          if (isTracking) {
-            audioEl.play().catch(e => console.warn("音声再開スキップ:", e));
-          }
-        }
+        if (document.hidden) { audioEl.pause(); } 
+        else { if (isTracking) audioEl.play().catch(e => console.warn(e)); }
       });
     </script>
   </body>
