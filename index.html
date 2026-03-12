@@ -416,7 +416,8 @@
       const closeModal = document.getElementById('close-modal');
 
       let lostTimeout; 
-      let isTracking = false; 
+      let isTracking = false;
+      let arLogSent = false;  // 1セッションで1回だけar_foundを送るフラグ
 
       overlay.addEventListener('click', function() {
         overlay.style.opacity = '0';
@@ -435,7 +436,10 @@
             captureBtn.style.display = 'block'; 
             this.playInkSequence();
             audioEl.volume = 0.3; audioEl.play();
-            sendLog('ar_found'); // 実際にARが認識された＝参拝行為
+            if (!arLogSent) {
+              sendLog('ar_found'); // 実際にARが認識された＝参拝行為（1回のみ）
+              arLogSent = true;
+            }
           });
 
           targetEl.addEventListener('targetLost', event => {
@@ -464,6 +468,7 @@
       document.querySelector('a-scene').setAttribute('ar-control', '');
 
       captureBtn.addEventListener('click', () => {
+        sendLog('capture');
         const sceneEl = document.querySelector('a-scene');
         const aframeCanvas = sceneEl.canvas;
         const video = document.querySelector('video');
