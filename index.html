@@ -3,7 +3,7 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta charset="utf-8">
-    <title>北野天満宮・飛梅と祈りの鶴 ARプロトタイプ</title>
+    <title id="page-title">飛梅と祈りの鶴 奉拝AR</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
@@ -42,6 +42,42 @@
     </style>
 
     <script>
+      // ── i18n ──────────────────────────────────────────────────────────────
+      const LANG = navigator.language && navigator.language.startsWith('ja') ? 'ja' : 'en';
+
+      const i18n = {
+        ja: {
+          title:          '飛梅と祈りの鶴 奉拝AR',
+          overlayHead:    '参拝を開始します',
+          overlayBody:    'スマートフォンを持ったまま軽く一礼し、<br>画面をタップしてください',
+          captureBtn:     '参拝の証を刻む',
+          saveHint:       '画像を長押しして保存してください',
+          altText:        '参拝の証',
+          closeBtn:       '戻る',
+          stampTitle:     '参拝之証',
+          dateFormat:     (d) => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`,
+          timeMsgs:       { morning: '朝霧の', midday: '白日の', evening: '黄昏時の', night: '月明かりの' },
+          weatherMsgs:    { rain: '雨降る神域にて', snow: '雪化粧の神域にて', clear: '清冽なる神域にて' },
+          msgFormat:      (time, weather) => `${time}祈り。${weather}`,
+        },
+        en: {
+          title:          'Tobiume & Origami Cranes AR',
+          overlayHead:    'Begin Your Visit',
+          overlayBody:    'Bow gently while holding your phone,<br>then tap the screen.',
+          captureBtn:     'Capture This Moment',
+          saveHint:       'Long-press the image to save it.',
+          altText:        'Proof of Visit',
+          closeBtn:       'Back',
+          stampTitle:     'Proof of Visit',
+          dateFormat:     (d) => `${d.toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric'})} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`,
+          timeMsgs:       { morning: 'Morning mist —', midday: 'Midday light —', evening: 'Evening glow —', night: 'Moonlit' },
+          weatherMsgs:    { rain: 'in the rain-blessed shrine', snow: 'in the snow-covered shrine', clear: 'in the sacred stillness' },
+          msgFormat:      (time, weather) => `${time} ${weather}`,
+        },
+      };
+      const t = i18n[LANG];
+      // ─────────────────────────────────────────────────────────────────────
+
       AFRAME.registerComponent('petal-system', {
         schema: { count: {type: 'int', default: 40}, texture: {type: 'string', default: '#umeTexture'}, area: {type: 'number', default: 0.8} },
         init: function () {
@@ -133,14 +169,14 @@
   </head>
   <body>
     <div id="start-overlay">
-      <h1>参拝を開始します</h1>
-      <p>スマートフォンを持ったまま軽く一礼し、<br>画面をタップしてください</p>
+      <h1 id="overlay-head">参拝を開始します</h1>
+      <p id="overlay-body">スマートフォンを持ったまま軽く一礼し、<br>画面をタップしてください</p>
     </div>
 
     <div id="capture-btn">参拝の証を刻む</div>
 
     <div id="result-modal">
-      <p>画像を長押しして保存してください</p>
+      <p id="save-hint">画像を長押しして保存してください</p>
       <img id="result-image" src="" alt="参拝の証">
       <div id="close-modal">戻る</div>
     </div>
@@ -181,28 +217,28 @@
     </a-scene>
 
     <script>
+      // デフォルトは晴れ
       let currentWeather = 'clear';
 
-      // 京都の天気を裏側で取得する関数
+      // ★変更: 裏側（バックグラウンド）で天気を取得する関数
       function fetchWeatherBackground() {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒でタイムアウト
-
-        // 京都の緯度経度
-        fetch('https://api.open-meteo.com/v1/forecast?latitude=35.0116&longitude=135.7681&current_weather=true', { signal: controller.signal })
+        // Open-Meteo API (京都の緯度経度)
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=35.0116&longitude=135.7681&current_weather=true')
           .then(res => res.json())
           .then(data => {
-            clearTimeout(timeoutId);
             const code = data.current_weather.weathercode;
             if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) currentWeather = 'rain';
             else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) currentWeather = 'snow';
             else currentWeather = 'clear';
 
+
+            // 取得できた瞬間にエフェクトを切り替え（ユーザーがすでにARを始めていても自然に切り替わります）
             document.getElementById('effect-clear').setAttribute('visible', currentWeather === 'clear');
             document.getElementById('effect-rain').setAttribute('visible', currentWeather === 'rain');
             document.getElementById('effect-snow').setAttribute('visible', currentWeather === 'snow');
           })
           .catch(e => {
+            // エラー時（圏外など）は何もしない＝デフォルトの「晴れ（clear）」のまま進む
             console.warn("天気API取得スキップ（晴れとして進行）:", e);
           });
       }
@@ -211,23 +247,34 @@
         const hour = new Date().getHours();
         let lightColor, timeMsg, weatherMsg;
 
-        if (hour >= 5 && hour < 11) { lightColor = "#e6f0ff"; timeMsg = "朝霧の"; }
-        else if (hour >= 11 && hour < 16) { lightColor = "#ffffff"; timeMsg = "白日の"; }
-        else if (hour >= 16 && hour < 19) { lightColor = "#ffd7a0"; timeMsg = "黄昏時の"; }
-        else { lightColor = "#4a548c"; timeMsg = "月明かりの"; }
+        if (hour >= 5 && hour < 11) { lightColor = "#e6f0ff"; timeMsg = t.timeMsgs.morning; }
+        else if (hour >= 11 && hour < 16) { lightColor = "#ffffff"; timeMsg = t.timeMsgs.midday; }
+        else if (hour >= 16 && hour < 19) { lightColor = "#ffd7a0"; timeMsg = t.timeMsgs.evening; }
+        else { lightColor = "#4a548c"; timeMsg = t.timeMsgs.night; }
 
-        if (currentWeather === 'rain') weatherMsg = "雨降る神域にて";
-        else if (currentWeather === 'snow') weatherMsg = "雪化粧の神域にて";
-        else weatherMsg = "清冽なる神域にて";
+        if (currentWeather === 'rain') weatherMsg = t.weatherMsgs.rain;
+        else if (currentWeather === 'snow') weatherMsg = t.weatherMsgs.snow;
+        else weatherMsg = t.weatherMsgs.clear;
         
-        return { lightColor, message: `${timeMsg}祈り。${weatherMsg}` };
+        return { lightColor, message: t.msgFormat(timeMsg, weatherMsg) };
       }
 
+      // 時間帯の光の色はすぐに設定し、天気は裏で取得を開始する
       document.addEventListener("DOMContentLoaded", () => {
+        // Apply i18n strings
+        document.getElementById('page-title').textContent     = t.title;
+        document.getElementById('overlay-head').textContent   = t.overlayHead;
+        document.getElementById('overlay-body').innerHTML     = t.overlayBody;
+        document.getElementById('capture-btn').textContent    = t.captureBtn;
+        document.getElementById('save-hint').textContent      = t.saveHint;
+        document.getElementById('result-image').alt           = t.altText;
+        document.getElementById('close-modal').textContent    = t.closeBtn;
+
         const settings = getTimeAndWeatherSettings();
         const lightEl = document.getElementById('ambient-light');
         if (lightEl) lightEl.setAttribute('color', settings.lightColor);
         
+        // ユーザーを待たせずに裏で取得スタート
         fetchWeatherBackground();
       });
 
@@ -336,10 +383,10 @@
         ctx.textAlign = 'center';
         
         ctx.font = 'bold 28px "Yu Mincho", "Hiragino Mincho ProN", serif';
-        ctx.fillText('参拝之証', w / 2, 45);
+        ctx.fillText(t.stampTitle, w / 2, 45);
 
         const now = new Date();
-        const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const dateStr = t.dateFormat(now);
         ctx.font = '16px "Yu Mincho", "Hiragino Mincho ProN", serif';
         ctx.fillText(dateStr, w / 2, 75);
 
