@@ -40,6 +40,21 @@
       #result-modal p { font-size: 14px; margin-bottom: 15px; letter-spacing: 1px; color: #ccc;}
       #result-image { max-width: 90%; max-height: 75%; border: 2px solid #D4AF37; box-shadow: 0 0 20px rgba(212, 175, 55, 0.3); object-fit: contain;}
       #close-modal { margin-top: 25px; padding: 10px 40px; border: 1px solid #fff; border-radius: 20px; cursor: pointer; font-size: 14px; }
+
+      /* ★追加: シェアボタンのスタイル */
+      #share-btn {
+        margin-top: 20px;
+        padding: 12px 40px;
+        background: #D4AF37;
+        color: #000;
+        font-weight: bold;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      }
+      #share-btn:active { background: #b8962e; }
     </style>
 
     <script>
@@ -56,6 +71,9 @@
           altText:        '参拝の証',
           closeBtn:       '戻る',
           stampTitle:     '参拝之証',
+          shareBtn:       'SNSでシェアする', // ★追加
+          shareText:      '神域の空気を持ち帰りました。 #北野天満宮 #奉拝AR', // ★追加
+          shareError:     'お使いのブラウザはシェア機能に対応していません。画像を長押しして保存してください。', // ★追加
           dateFormat:     (d) => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`,
           timeMsgs:       { morning: '朝霧の', midday: '白日の', evening: '黄昏時の', night: '月明かりの' },
           weatherMsgs:    { rain: '雨降る神域にて', snow: '雪化粧の神域にて', clear: '清冽なる神域にて' },
@@ -70,6 +88,9 @@
           altText:        'Proof of Visit',
           closeBtn:       'Back',
           stampTitle:     'Proof of Visit',
+          shareBtn:       'Share', // ★追加
+          shareText:      'I brought back the sacred air. #KitanoTenmangu #AR', // ★追加
+          shareError:     'Your browser does not support the Web Share API. Please long-press the image to save it.', // ★追加
           dateFormat:     (d) => `${d.toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric'})} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`,
           timeMsgs:       { morning: 'Morning mist —', midday: 'Midday light —', evening: 'Evening glow —', night: 'Moonlit' },
           weatherMsgs:    { rain: 'in the rain-blessed shrine', snow: 'in the snow-covered shrine', clear: 'in the sacred stillness' },
@@ -196,7 +217,7 @@
             const era = eras.find(e => now >= e.start);
             const eraYear = now.getFullYear() - era.start.getFullYear()
                           + (now < new Date(era.start.getFullYear(), now.getMonth(), now.getDate()) ? 0 : 0);
-            // 正確な元号年：同年でも元号開始日より前なら前元号
+            
             const kanjiNums = ['〇','一','二','三','四','五','六','七','八','九','十',
                                '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
                                '二十一','二十二','二十三','二十四','二十五','二十六','二十七','二十八','二十九','三十','三十一'];
@@ -211,27 +232,25 @@
             const dateStr = `${era.name}${gyYearStr}年${month}月${day}日`;
             const charArray = dateStr.split('');
 
-            // フォント設定（Kaisei Decol が読み込まれていれば使用、なければ明朝フォールバック）
+            // フォント設定
             const fontSize = 32;
             ctx.font = `bold ${fontSize}px "Kaisei Decol", "Yu Mincho", "Hiragino Mincho ProN", serif`;
             ctx.textAlign = 'center';
 
             // 右上に縦書き配置
-            const marginRight = 28;   // 右端からの余白
-            const marginTop   = 30;   // 上端からの余白
+            const marginRight = 28;   
+            const marginTop   = 30;   
             const lineHeight  = fontSize + 6;
             const x = SIZE - marginRight;
 
             charArray.forEach((ch, i) => {
               const y = marginTop + fontSize + i * lineHeight;
-              // 縁取り（黒）で文字を引き立てる
               ctx.shadowColor = 'transparent';
               ctx.shadowBlur = 0;
               ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
               ctx.lineWidth = 5;
               ctx.lineJoin = 'round';
               ctx.strokeText(ch, x, y);
-              // 本体：金色
               ctx.fillStyle = '#D4AF37';
               ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
               ctx.shadowBlur = 4;
@@ -244,15 +263,13 @@
               src: canvas,
               transparent: true,
               depthWrite: false,
-              opacity: 0,  // 初期は非表示（boiling-effectとanimationで制御される）
+              opacity: 0, 
             });
           };
 
-          // フォント読み込み待ち → 描画
           if (document.fonts && document.fonts.ready) {
             document.fonts.ready.then(drawTexture);
           } else {
-            // フォールバック：少し待ってから描画
             setTimeout(drawTexture, 1000);
           }
         }
@@ -271,6 +288,9 @@
     <div id="result-modal">
       <p id="save-hint">画像を長押しして保存してください</p>
       <img id="result-image" src="" alt="参拝の証">
+      
+      <button id="share-btn">SNSでシェアする</button>
+      
       <div id="close-modal">戻る</div>
     </div>
 
@@ -335,17 +355,13 @@
         body.append(FORM_FIELDS.timeOfDay, timeOfDay);
         body.append(FORM_FIELDS.event,     eventName);
 
-        // mode:'no-cors'のためCORSエラーは出るが送信は届く
         fetch(FORM_ACTION, { method: 'POST', body, mode: 'no-cors' }).catch(() => {});
       }
       // ──────────────────────────────────────────────────────────────────────
 
-      // デフォルトは晴れ
       let currentWeather = 'clear';
 
-      // ★変更: 裏側（バックグラウンド）で天気を取得する関数
       function fetchWeatherBackground() {
-        // Open-Meteo API (京都の緯度経度)
         fetch('https://api.open-meteo.com/v1/forecast?latitude=35.0116&longitude=135.7681&current_weather=true')
           .then(res => res.json())
           .then(data => {
@@ -354,14 +370,11 @@
             else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) currentWeather = 'snow';
             else currentWeather = 'clear';
 
-
-            // 取得できた瞬間にエフェクトを切り替え（ユーザーがすでにARを始めていても自然に切り替わります）
             document.getElementById('effect-clear').setAttribute('visible', currentWeather === 'clear');
             document.getElementById('effect-rain').setAttribute('visible', currentWeather === 'rain');
             document.getElementById('effect-snow').setAttribute('visible', currentWeather === 'snow');
           })
           .catch(e => {
-            // エラー時（圏外など）は何もしない＝デフォルトの「晴れ（clear）」のまま進む
             console.warn("天気API取得スキップ（晴れとして進行）:", e);
           });
       }
@@ -382,7 +395,6 @@
         return { lightColor, message: t.msgFormat(timeMsg, weatherMsg) };
       }
 
-      // 時間帯の光の色はすぐに設定し、天気は裏で取得を開始する
       document.addEventListener("DOMContentLoaded", () => {
         // Apply i18n strings
         document.getElementById('page-title').textContent     = t.title;
@@ -391,16 +403,14 @@
         document.getElementById('capture-btn').textContent    = t.captureBtn;
         document.getElementById('save-hint').textContent      = t.saveHint;
         document.getElementById('result-image').alt           = t.altText;
+        document.getElementById('share-btn').textContent      = t.shareBtn; // ★追加
         document.getElementById('close-modal').textContent    = t.closeBtn;
 
         const settings = getTimeAndWeatherSettings();
         const lightEl = document.getElementById('ambient-light');
         if (lightEl) lightEl.setAttribute('color', settings.lightColor);
         
-        // ユーザーを待たせずに裏で取得スタート
         fetchWeatherBackground();
-
-        // ページ到達ログ（天気取得より後でもOK・fire-and-forget）
         sendLog('access');
       });
 
@@ -411,13 +421,14 @@
       const inkManifestationEl = document.querySelector('#inkManifestation');
       
       const captureBtn = document.getElementById('capture-btn');
+      const shareBtn = document.getElementById('share-btn'); // ★追加
       const resultModal = document.getElementById('result-modal');
       const resultImage = document.getElementById('result-image');
       const closeModal = document.getElementById('close-modal');
 
       let lostTimeout; 
       let isTracking = false;
-      let arLogSent = false;  // 1セッションで1回だけar_foundを送るフラグ
+      let arLogSent = false;
 
       overlay.addEventListener('click', function() {
         overlay.style.opacity = '0';
@@ -430,6 +441,9 @@
       AFRAME.registerComponent('ar-control', {
         init: function () {
           targetEl.addEventListener('targetFound', event => {
+            // ★追加: Android等なら「トトトッ」と神聖な振動
+            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+
             isTracking = true;
             if (lostTimeout) { clearTimeout(lostTimeout); lostTimeout = null; }
             manifestationEl.setAttribute('visible', true);
@@ -437,7 +451,7 @@
             this.playInkSequence();
             audioEl.volume = 0.3; audioEl.play();
             if (!arLogSent) {
-              sendLog('ar_found'); // 実際にARが認識された＝参拝行為（1回のみ）
+              sendLog('ar_found'); 
               arLogSent = true;
             }
           });
@@ -528,6 +542,46 @@
 
         resultImage.src = canvas.toDataURL('image/jpeg', 0.9);
         resultModal.style.display = 'flex';
+
+        // ★追加: 撮影した瞬間の「カシャッ」という振動
+        if (navigator.vibrate) navigator.vibrate(200);
+
+        // ★追加: SNSシェア用にCanvasを「Fileオブジェクト」に変換して保持
+        canvas.toBlob((blob) => {
+          window.currentShareFile = new File([blob], "goshuin_ar.jpg", { type: "image/jpeg" });
+        }, "image/jpeg", 0.9);
+      });
+
+      // ★追加: SNSシェア機能のロジック
+      shareBtn.addEventListener('click', async () => {
+        // ボタンを押した時の軽い振動
+        if (navigator.vibrate) navigator.vibrate(50);
+
+        if (navigator.share && window.currentShareFile) {
+          try {
+            // ブラウザが「画像ファイルの直接シェア」に対応しているかチェック
+            if (navigator.canShare && navigator.canShare({ files: [window.currentShareFile] })) {
+              await navigator.share({
+                title: t.title,
+                text: t.shareText,
+                files: [window.currentShareFile] // 画像を直接添付
+              });
+            } else {
+              // 画像添付に対応していないブラウザの場合（テキストとURLだけシェア）
+              await navigator.share({
+                title: t.title,
+                text: t.shareText,
+                url: window.location.href
+              });
+            }
+            // シェア成功ログを送信
+            if (typeof sendLog === 'function') sendLog('share_success');
+          } catch (error) {
+            console.log('シェアがキャンセルされたか、失敗しました', error);
+          }
+        } else {
+          alert(t.shareError);
+        }
       });
 
       closeModal.addEventListener('click', () => {
