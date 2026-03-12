@@ -310,6 +310,36 @@
     </a-scene>
 
     <script>
+      // ── アクセスログ送信（Googleフォーム経由）────────────────────────────
+      const FORM_ACTION = 'https://docs.google.com/forms/d/e/1FAIpQLScree_yctn2A2oZOuxYeJFPs20Tdm7m3inbuXeGhoivGA44Gg/formResponse';
+      const FORM_FIELDS = {
+        timestamp:  'entry.209041019',
+        lang:       'entry.1632396277',
+        weather:    'entry.134011435',
+        timeOfDay:  'entry.58239131',
+        event:      'entry.957978847',
+      };
+
+      function sendLog(eventName) {
+        const hour = new Date().getHours();
+        let timeOfDay;
+        if      (hour >= 5  && hour < 11) timeOfDay = 'morning';
+        else if (hour >= 11 && hour < 16) timeOfDay = 'midday';
+        else if (hour >= 16 && hour < 19) timeOfDay = 'evening';
+        else                              timeOfDay = 'night';
+
+        const body = new FormData();
+        body.append(FORM_FIELDS.timestamp, new Date().toISOString());
+        body.append(FORM_FIELDS.lang,      LANG);
+        body.append(FORM_FIELDS.weather,   currentWeather);
+        body.append(FORM_FIELDS.timeOfDay, timeOfDay);
+        body.append(FORM_FIELDS.event,     eventName);
+
+        // mode:'no-cors'のためCORSエラーは出るが送信は届く
+        fetch(FORM_ACTION, { method: 'POST', body, mode: 'no-cors' }).catch(() => {});
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
       // デフォルトは晴れ
       let currentWeather = 'clear';
 
@@ -369,6 +399,9 @@
         
         // ユーザーを待たせずに裏で取得スタート
         fetchWeatherBackground();
+
+        // ページ到達ログ（天気取得より後でもOK・fire-and-forget）
+        sendLog('access');
       });
 
       const overlay = document.getElementById('start-overlay');
@@ -401,7 +434,8 @@
             manifestationEl.setAttribute('visible', true);
             captureBtn.style.display = 'block'; 
             this.playInkSequence();
-            audioEl.volume = 0.3; audioEl.play(); 
+            audioEl.volume = 0.3; audioEl.play();
+            sendLog('ar_found'); // 実際にARが認識された＝参拝行為
           });
 
           targetEl.addEventListener('targetLost', event => {
