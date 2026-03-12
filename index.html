@@ -1,1340 +1,657 @@
 <!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>飛梅と祈りの鶴 奉拝AR — コード解説</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500;700&family=Noto+Sans+JP:wght@300;400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --ink: #1a1410;
-      --paper: #f5f0e8;
-      --paper-dark: #ede7d6;
-      --gold: #c9a84c;
-      --gold-light: #e8cc7a;
-      --vermillion: #c0392b;
-      --pine: #2d5016;
-      --rain: #4a6fa5;
-      --snow: #8facc5;
-      --border: rgba(201,168,76,0.3);
-      --shadow: rgba(26,20,16,0.15);
-    }
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8">
+    <title id="page-title">飛梅と祈りの鶴 奉拝AR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@700&display=swap" rel="stylesheet">
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.0.0/dist/aframe-extras.min.js"></script>
+    
+    <style>
+      a-scene .a-enter-vr-button, a-scene .a-enter-ar-button { display: none; }
+      
+      #start-overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.9); z-index: 9999;
+        display: flex; justify-content: center; align-items: center; flex-direction: column;
+        color: white; font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; cursor: pointer;
+        transition: opacity 1.5s ease; text-align: center;
+      }
+      #start-overlay h1 { font-size: 26px; font-weight: normal; margin-bottom: 20px; letter-spacing: 2px;}
+      #start-overlay p { font-size: 15px; color: #ddd; line-height: 1.8; }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+      #capture-btn {
+        display: none; position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+        z-index: 9998; background: rgba(212, 175, 55, 0.9); color: #000; 
+        padding: 15px 30px; border-radius: 30px; border: 1px solid #FFF;
+        font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; font-size: 16px; font-weight: bold;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5); cursor: pointer; transition: background 0.3s;
+      }
+      #capture-btn:active { background: rgba(255, 215, 0, 1); }
 
-    body {
-      background-color: var(--paper);
-      color: var(--ink);
-      font-family: 'Noto Serif JP', serif;
-      font-weight: 300;
-      line-height: 1.9;
-      min-height: 100vh;
-      background-image:
-        radial-gradient(ellipse at 20% 0%, rgba(201,168,76,0.07) 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 100%, rgba(45,80,22,0.05) 0%, transparent 60%);
-    }
+      #result-modal {
+        display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.95); z-index: 10000;
+        flex-direction: column; align-items: center; justify-content: center;
+        color: white; font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif; text-align: center;
+      }
+      #result-modal p { font-size: 14px; margin-bottom: 15px; letter-spacing: 1px; color: #ccc;}
+      #result-image { max-width: 90%; max-height: 75%; border: 2px solid #D4AF37; box-shadow: 0 0 20px rgba(212, 175, 55, 0.3); object-fit: contain;}
+      #close-modal { margin-top: 25px; padding: 10px 40px; border: 1px solid #fff; border-radius: 20px; cursor: pointer; font-size: 14px; }
 
-    /* 和紙テクスチャ風のオーバーレイ */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 0;
-    }
+      /* ★追加: シェアボタンのスタイル */
+      #share-btn {
+        margin-top: 20px;
+        padding: 12px 40px;
+        background: #D4AF37;
+        color: #000;
+        font-weight: bold;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      }
+      #share-btn:active { background: #b8962e; }
+    </style>
 
-    /* ヘッダー */
-    header {
-      position: relative;
-      text-align: center;
-      padding: 70px 20px 50px;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(201,168,76,0.08) 0%, transparent 100%);
-      overflow: hidden;
-    }
+    <script>
+      // ── i18n ──────────────────────────────────────────────────────────────
+      const LANG = navigator.language && navigator.language.startsWith('ja') ? 'ja' : 'en';
 
-    header::before {
-      content: '奉';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 280px;
-      color: rgba(201,168,76,0.04);
-      font-weight: 700;
-      pointer-events: none;
-      letter-spacing: -10px;
-    }
+      const i18n = {
+        ja: {
+          title:          '飛梅と祈りの鶴 奉拝AR',
+          overlayHead:    '参拝を開始します',
+          overlayBody:    'スマートフォンを持ったまま軽く一礼し、<br>画面をタップしてください',
+          captureBtn:     '参拝の証を刻む',
+          saveHint:       '画像を長押しして保存、またはシェアしてください',
+          altText:        '参拝の証',
+          closeBtn:       '戻る',
+          stampTitle:     '参拝之証',
+          shareBtn:       'SNSでシェアする',
+          shareText:      '神域の空気を持ち帰りました。 #北野天満宮 #奉拝AR',
+          shareError:     'お使いのブラウザはシェア機能に対応していません。画像を長押しして保存してください。',
+          cameraNote:     '※ カメラへのアクセスを許可してください',
+          scanMsg:        'カメラを栞（はさみ紙）に向けてください…',
+          dateFormat:     (d) => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`,
+          timeMsgs:       { morning: '朝霧の', midday: '白日の', evening: '黄昏時の', night: '月明かりの' },
+          weatherMsgs:    { rain: '雨降る神域にて', snow: '雪化粧の神域にて', clear: '清冽なる神域にて' },
+          msgFormat:      (time, weather) => `${time}祈り。${weather}`,
+        },
+        en: {
+          title:          'Tobiume & Origami Cranes AR',
+          overlayHead:    'Begin Your Visit',
+          overlayBody:    'Bow gently while holding your phone,<br>then tap the screen.',
+          captureBtn:     'Capture This Moment',
+          saveHint:       'Long-press to save, or tap to share.',
+          altText:        'Proof of Visit',
+          closeBtn:       'Back',
+          stampTitle:     'Proof of Visit',
+          shareBtn:       'Share',
+          shareText:      'I brought back the sacred air. #KitanoTenmangu #AR',
+          shareError:     'Your browser does not support the Web Share API. Please long-press the image to save it.',
+          cameraNote:     '※ Please allow camera access when prompted.',
+          scanMsg:        'Point your camera at the bookmark (hasami-gami)…',
+          dateFormat:     (d) => `${d.toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric'})} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`,
+          timeMsgs:       { morning: 'Morning mist —', midday: 'Midday light —', evening: 'Evening glow —', night: 'Moonlit' },
+          weatherMsgs:    { rain: 'in the rain-blessed shrine', snow: 'in the snow-covered shrine', clear: 'in the sacred stillness' },
+          msgFormat:      (time, weather) => `${time} ${weather}`,
+        },
+      };
+      const t = i18n[LANG];
+      // ─────────────────────────────────────────────────────────────────────
 
-    .header-kamon {
-      width: 60px;
-      height: 60px;
-      margin: 0 auto 20px;
-      border: 1.5px solid var(--gold);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      color: var(--gold);
-      animation: rotate 30s linear infinite;
-    }
+      AFRAME.registerComponent('petal-system', {
+        schema: { count: {type: 'int', default: 40}, texture: {type: 'string', default: '#umeTexture'}, area: {type: 'number', default: 0.8} },
+        init: function () {
+          this.petals = [];
+          for (let i = 0; i < this.data.count; i++) {
+            let el = document.createElement('a-image'); el.setAttribute('src', this.data.texture);
+            let size = Math.random() * 0.03 + 0.02; el.setAttribute('scale', `${size} ${size} ${size}`);
+            el.setAttribute('transparent', 'true'); el.setAttribute('alpha-test', '0.1');
+            this.el.appendChild(el);
+            this.petals.push({
+              el: el, y: (Math.random() - 0.5) * 2, radius: Math.random() * this.data.area + 0.1, angle: Math.random() * Math.PI * 2,
+              speedY: Math.random() * 0.002 + 0.001, speedAngle: (Math.random() - 0.5) * 0.02,
+              rotX: Math.random() * 360, rotY: Math.random() * 360, rotZ: Math.random() * 360,
+              rotSpeedX: (Math.random() - 0.5) * 5, rotSpeedY: (Math.random() - 0.5) * 5, rotSpeedZ: (Math.random() - 0.5) * 5
+            });
+          }
+        },
+        tick: function () {
+          this.petals.forEach(p => {
+            p.angle += p.speedAngle; p.y += p.speedY; if (p.y > 1.5) p.y = -0.5;
+            let x = Math.cos(p.angle) * p.radius; let z = Math.sin(p.angle) * p.radius;
+            p.el.setAttribute('position', `${x} ${p.y} ${z}`);
+            p.rotX += p.rotSpeedX; p.rotY += p.rotSpeedY; p.rotZ += p.rotSpeedZ;
+            p.el.setAttribute('rotation', `${p.rotX} ${p.rotY} ${p.rotZ}`);
+          });
+        }
+      });
 
-    @keyframes rotate {
-      to { transform: rotate(360deg); }
-    }
+      AFRAME.registerComponent('rain-system', {
+        schema: { count: {type: 'int', default: 100}, area: {type: 'number', default: 1.0} },
+        init: function () {
+          this.drops = [];
+          for (let i = 0; i < this.data.count; i++) {
+            let el = document.createElement('a-entity');
+            el.setAttribute('geometry', 'primitive: plane; width: 0.002; height: 0.08');
+            el.setAttribute('material', 'color: #aaccff; shader: flat; transparent: true; opacity: 0.5');
+            this.el.appendChild(el);
+            this.drops.push({
+              el: el, x: (Math.random() - 0.5) * this.data.area, z: (Math.random() - 0.5) * this.data.area,
+              y: Math.random() * 2, speed: Math.random() * 0.03 + 0.02
+            });
+          }
+        },
+        tick: function () {
+          this.drops.forEach(p => {
+            p.y -= p.speed; if (p.y < -0.5) { p.y = 1.5; p.x = (Math.random() - 0.5) * this.data.area; p.z = (Math.random() - 0.5) * this.data.area; }
+            p.el.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
+          });
+        }
+      });
 
-    header h1 {
-      font-size: clamp(22px, 4vw, 32px);
-      font-weight: 500;
-      letter-spacing: 6px;
-      color: var(--ink);
-      margin-bottom: 12px;
-    }
+      AFRAME.registerComponent('snow-system', {
+        schema: { count: {type: 'int', default: 80}, area: {type: 'number', default: 1.0} },
+        init: function () {
+          this.flakes = [];
+          for (let i = 0; i < this.data.count; i++) {
+            let el = document.createElement('a-entity');
+            let size = Math.random() * 0.005 + 0.002;
+            el.setAttribute('geometry', `primitive: circle; radius: ${size}`);
+            el.setAttribute('material', 'color: #ffffff; shader: flat; transparent: true; opacity: 0.8');
+            this.el.appendChild(el);
+            this.flakes.push({
+              el: el, x: (Math.random() - 0.5) * this.data.area, z: (Math.random() - 0.5) * this.data.area,
+              y: Math.random() * 2, speedY: Math.random() * 0.005 + 0.002,
+              sway: Math.random() * Math.PI * 2, swaySpeed: Math.random() * 0.02
+            });
+          }
+        },
+        tick: function () {
+          this.flakes.forEach(p => {
+            p.sway += p.swaySpeed; p.y -= p.speedY; p.x += Math.sin(p.sway) * 0.002;
+            if (p.y < -0.5) { p.y = 1.5; p.x = (Math.random() - 0.5) * this.data.area; }
+            p.el.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
+          });
+        }
+      });
 
-    header p {
-      font-size: 13px;
-      color: #7a6e62;
-      letter-spacing: 3px;
-      font-family: 'Noto Sans JP', sans-serif;
-    }
+      AFRAME.registerComponent('boiling-effect', {
+        schema: { intensity: {type: 'number', default: 0.0015}, speed: {type: 'number', default: 100} },
+        init: function() { this.lastTime = 0; this.baseX = this.el.object3D.position.x; this.baseY = this.el.object3D.position.y; },
+        tick: function(time) {
+          if (time - this.lastTime < this.data.speed) return;
+          this.lastTime = time;
+          let dx = (Math.random() - 0.5) * this.data.intensity; let dy = (Math.random() - 0.5) * this.data.intensity; let dr = (Math.random() - 0.5) * 0.01; 
+          this.el.object3D.position.x = this.baseX + dx; this.el.object3D.position.y = this.baseY + dy; this.el.object3D.rotation.z = dr;
+        }
+      });
 
-    /* 目次 */
-    nav {
-      max-width: 860px;
-      margin: 50px auto 0;
-      padding: 0 30px;
-    }
+      // ── ink_aura に縦書き日付を焼き込むコンポーネント ────────────────────
+      AFRAME.registerComponent('ink-date-texture', {
+        init: function () {
+          const el = this.el;
+          const img = document.querySelector('#inkAura');
 
-    .toc {
-      border: 1px solid var(--border);
-      padding: 30px 36px;
-      background: rgba(255,255,255,0.5);
-      position: relative;
-    }
+          const drawTexture = () => {
+            const SIZE = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = SIZE; canvas.height = SIZE;
+            const ctx = canvas.getContext('2d');
 
-    .toc::before {
-      content: '目次';
-      position: absolute;
-      top: -11px;
-      left: 30px;
-      background: var(--paper);
-      padding: 0 10px;
-      font-size: 11px;
-      letter-spacing: 4px;
-      color: var(--gold);
-      font-family: 'Noto Sans JP', sans-serif;
-    }
+            // ink_aura.png を描画
+            ctx.drawImage(img, 0, 0, SIZE, SIZE);
 
-    .toc ol {
-      list-style: none;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 8px 30px;
-    }
+            // 和暦・漢数字変換
+            const now = new Date();
 
-    .toc a {
-      text-decoration: none;
-      color: #5a4e42;
-      font-size: 13px;
-      font-family: 'Noto Sans JP', sans-serif;
-      letter-spacing: 1px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: color 0.2s;
-    }
+            // 元号テーブル（西暦の開始年月日で定義）
+            const eras = [
+              { name: '令和', start: new Date(2019,  4, 1) },
+              { name: '平成', start: new Date(1989,  0, 8) },
+              { name: '昭和', start: new Date(1926, 11,25) },
+              { name: '大正', start: new Date(1912,  6,30) },
+              { name: '明治', start: new Date(1868,  9,23) },
+            ];
+            const era = eras.find(e => now >= e.start);
+            const eraYear = now.getFullYear() - era.start.getFullYear()
+                          + (now < new Date(era.start.getFullYear(), now.getMonth(), now.getDate()) ? 0 : 0);
+            
+            const kanjiNums = ['〇','一','二','三','四','五','六','七','八','九','十',
+                               '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
+                               '二十一','二十二','二十三','二十四','二十五','二十六','二十七','二十八','二十九','三十','三十一'];
 
-    .toc a::before {
-      content: '◇';
-      color: var(--gold);
-      font-size: 9px;
-      flex-shrink: 0;
-    }
+            // 元号年（1年→「元」）
+            const gyYear = now.getFullYear() - era.start.getFullYear() + 1;
+            const gyYearStr = gyYear === 1 ? '元' : kanjiNums[gyYear] || String(gyYear);
+            const month = kanjiNums[now.getMonth() + 1];
+            const day   = kanjiNums[now.getDate()];
 
-    .toc a:hover { color: var(--gold); }
+            // 縦書き用に一文字ずつ展開
+            const dateStr = `${era.name}${gyYearStr}年${month}月${day}日`;
+            const charArray = dateStr.split('');
 
-    /* メインコンテンツ */
-    main {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 60px 30px 100px;
-    }
+            // フォント設定
+            const fontSize = 32;
+            ctx.font = `bold ${fontSize}px "Kaisei Decol", "Yu Mincho", "Hiragino Mincho ProN", serif`;
+            ctx.textAlign = 'center';
 
-    /* セクション */
-    section {
-      margin-bottom: 70px;
-    }
+            // 右上に縦書き配置
+            const marginRight = 28;   
+            const marginTop   = 30;   
+            const lineHeight  = fontSize + 6;
+            const x = SIZE - marginRight;
 
-    .section-header {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 36px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border);
-    }
+            charArray.forEach((ch, i) => {
+              const y = marginTop + fontSize + i * lineHeight;
+              ctx.shadowColor = 'transparent';
+              ctx.shadowBlur = 0;
+              ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+              ctx.lineWidth = 5;
+              ctx.lineJoin = 'round';
+              ctx.strokeText(ch, x, y);
+              ctx.fillStyle = '#D4AF37';
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+              ctx.shadowBlur = 4;
+              ctx.fillText(ch, x, y);
+            });
 
-    .section-badge {
-      width: 36px;
-      height: 36px;
-      border: 1px solid var(--gold);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      color: var(--gold);
-      flex-shrink: 0;
-      font-family: 'Noto Sans JP', sans-serif;
-    }
+            // canvasをA-Frameテクスチャとして適用
+            el.setAttribute('material', {
+              shader: 'flat',
+              src: canvas,
+              transparent: true,
+              depthWrite: false,
+              opacity: 0, 
+            });
+          };
 
-    h2 {
-      font-size: 19px;
-      font-weight: 500;
-      letter-spacing: 3px;
-      color: var(--ink);
-    }
-
-    h3 {
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: 2px;
-      color: var(--ink);
-      margin: 40px 0 20px;
-      padding-left: 14px;
-      border-left: 2px solid var(--gold);
-    }
-
-    /* コードブロック + 説明のペア */
-    .code-block {
-      margin-bottom: 6px;
-      position: relative;
-    }
-
-    .code-block pre {
-      background: #1e1a14;
-      border: 1px solid rgba(201,168,76,0.2);
-      padding: 14px 18px;
-      border-radius: 4px;
-      overflow-x: auto;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12.5px;
-      line-height: 1.7;
-    }
-
-    /* シンタックスカラー */
-    .kw { color: #e6a93d; }   /* キーワード */
-    .fn { color: #7ecfb0; }   /* 関数名 */
-    .st { color: #c8a86b; }   /* 文字列 */
-    .cm { color: #6a7a5e; }   /* コメント */
-    .nm { color: #9ecbff; }   /* 数値 */
-    .tg { color: #f08080; }   /* HTMLタグ */
-    .at { color: #b8d7a3; }   /* 属性 */
-    .vl { color: #ce9178; }   /* 属性値 */
-    .pu { color: #dcdcaa; }   /* 記号・句読点 */
-    .plain { color: #d4c9b8; } /* 通常テキスト */
-    .prop { color: #9cdcfe; } /* プロパティ */
-
-    .description {
-      background: rgba(255,255,255,0.6);
-      border-left: 3px solid rgba(201,168,76,0.4);
-      padding: 10px 16px 10px 18px;
-      font-size: 13.5px;
-      color: #3d3028;
-      line-height: 1.8;
-      font-family: 'Noto Sans JP', sans-serif;
-      font-weight: 300;
-      margin-bottom: 24px;
-    }
-
-    .description code {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      background: rgba(201,168,76,0.12);
-      padding: 1px 5px;
-      border-radius: 2px;
-      color: #8b6914;
-    }
-
-    /* テーブル */
-    .table-wrap {
-      overflow-x: auto;
-      margin: 20px 0 30px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-family: 'Noto Sans JP', sans-serif;
-      font-size: 13px;
-    }
-
-    th {
-      background: rgba(201,168,76,0.12);
-      color: #5a4020;
-      padding: 10px 16px;
-      text-align: left;
-      font-weight: 500;
-      letter-spacing: 1px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    td {
-      padding: 9px 16px;
-      border-bottom: 1px solid rgba(201,168,76,0.15);
-      color: #3d3028;
-      vertical-align: top;
-    }
-
-    td code {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11.5px;
-      background: rgba(201,168,76,0.1);
-      padding: 1px 5px;
-      border-radius: 2px;
-      color: #8b6914;
-    }
-
-    tr:last-child td { border-bottom: none; }
-
-    /* フロー図 */
-    .flow {
-      background: #1e1a14;
-      border: 1px solid rgba(201,168,76,0.2);
-      padding: 24px 28px;
-      border-radius: 4px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      color: #c8a86b;
-      line-height: 2;
-      margin: 20px 0;
-      white-space: pre;
-      overflow-x: auto;
-    }
-
-    /* コンポーネントバッジ */
-    .component-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(201,168,76,0.1);
-      border: 1px solid rgba(201,168,76,0.35);
-      padding: 4px 12px;
-      border-radius: 2px;
-      font-size: 12px;
-      font-family: 'JetBrains Mono', monospace;
-      color: #8b6914;
-      margin-bottom: 20px;
-    }
-
-    /* 注釈ボックス */
-    .note {
-      border: 1px solid rgba(74,111,165,0.3);
-      background: rgba(74,111,165,0.05);
-      padding: 14px 18px;
-      font-family: 'Noto Sans JP', sans-serif;
-      font-size: 13px;
-      color: #2d4a6e;
-      margin: 20px 0;
-      line-height: 1.8;
-    }
-
-    .note strong {
-      color: var(--rain);
-      font-weight: 500;
-    }
-
-    /* セクション区切り */
-    .divider {
-      text-align: center;
-      color: var(--gold);
-      font-size: 11px;
-      letter-spacing: 8px;
-      margin: 50px 0;
-      opacity: 0.5;
-    }
-
-    /* フッター */
-    footer {
-      text-align: center;
-      padding: 40px 20px;
-      border-top: 1px solid var(--border);
-      font-family: 'Noto Sans JP', sans-serif;
-      font-size: 12px;
-      color: #a09080;
-      letter-spacing: 2px;
-    }
-
-    /* スクロールバー */
-    pre::-webkit-scrollbar { height: 4px; }
-    pre::-webkit-scrollbar-track { background: #2a2418; }
-    pre::-webkit-scrollbar-thumb { background: #4a3e2a; border-radius: 2px; }
-
-    /* アニメーション */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    section { animation: fadeIn 0.5s ease both; }
-    section:nth-child(2) { animation-delay: 0.05s; }
-    section:nth-child(3) { animation-delay: 0.1s; }
-    section:nth-child(4) { animation-delay: 0.15s; }
-    section:nth-child(5) { animation-delay: 0.2s; }
-    section:nth-child(6) { animation-delay: 0.25s; }
-    section:nth-child(7) { animation-delay: 0.3s; }
-    section:nth-child(8) { animation-delay: 0.35s; }
-
-    @media (max-width: 600px) {
-      header { padding: 50px 16px 36px; }
-      main, nav { padding-left: 16px; padding-right: 16px; }
-      .toc ol { grid-template-columns: 1fr; }
-      .flow { font-size: 11px; }
-    }
-  </style>
-</head>
-<body>
-
-<header>
-  <div class="header-kamon">梅</div>
-  <h1>飛梅と祈りの鶴　奉拝AR</h1>
-  <p>コード解説ドキュメント</p>
-</header>
-
-<nav>
-  <div class="toc">
-    <ol>
-      <li><a href="#sec-head">&lt;head&gt; セクション</a></li>
-      <li><a href="#sec-css">スタイル（CSS）</a></li>
-      <li><a href="#sec-petal">petal-system</a></li>
-      <li><a href="#sec-rain">rain-system</a></li>
-      <li><a href="#sec-snow">snow-system</a></li>
-      <li><a href="#sec-boiling">boiling-effect</a></li>
-      <li><a href="#sec-inkdate">ink-date-texture</a></li>
-      <li><a href="#sec-body">&lt;body&gt; HTML要素</a></li>
-      <li><a href="#sec-aframe">A-Frameシーン</a></li>
-      <li><a href="#sec-js">JavaScript ロジック</a></li>
-      <li><a href="#sec-arcontrol">ar-control</a></li>
-      <li><a href="#sec-capture">撮影処理</a></li>
-      <li><a href="#sec-weather">天気API</a></li>
-      <li><a href="#sec-i18n">多言語対応（i18n）</a></li>
-      <li><a href="#sec-log">アクセスログ</a></li>
-      <li><a href="#sec-sw">Service Worker（PWA対応）</a></li>
-      <li><a href="#sec-share">SNSシェア機能</a></li>
-      <li><a href="#sec-vibrate">バイブレーション</a></li>
-    </ol>
-  </div>
-</nav>
-
-<main>
-
-  <!-- ====== head セクション ====== -->
-  <section id="sec-head">
-    <div class="section-header">
-      <div class="section-badge">一</div>
-      <h2>&lt;head&gt; セクション</h2>
+          if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(drawTexture);
+          } else {
+            setTimeout(drawTexture, 1000);
+          }
+        }
+      });
+      // ──────────────────────────────────────────────────────────────────────
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(registration => {
+              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            })
+            .catch(err => {
+              console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="start-overlay">
+      <h1 id="overlay-head">参拝を開始します</h1>
+      <p id="overlay-body">スマートフォンを持ったまま軽く一礼し、<br>画面をタップしてください</p>
+      <p id="camera-note" style="margin-top:18px; font-size:13px; color:#aaa; letter-spacing:1px;">※ カメラへのアクセスを許可してください</p>
     </div>
 
-    <div class="code-block"><pre><span class="tg">&lt;!DOCTYPE html&gt;</span></pre></div>
-    <div class="description">HTML5文書であることをブラウザに宣言する。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;html&gt;</span></pre></div>
-    <div class="description">HTMLドキュメントの開始タグ。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;head&gt;</span></pre></div>
-    <div class="description">メタ情報・スクリプト・スタイルを記述するセクションの開始。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;meta</span> <span class="at">name=</span><span class="vl">"viewport"</span> <span class="at">content=</span><span class="vl">"width=device-width, initial-scale=1"</span> <span class="tg">/&gt;</span></pre></div>
-    <div class="description">スマートフォンで表示したとき、画面幅に合わせてページを表示する（レスポンシブ対応）。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;meta</span> <span class="at">charset=</span><span class="vl">"utf-8"</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">文字コードをUTF-8に設定。日本語が正しく表示されるようにする。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;title</span> <span class="at">id=</span><span class="vl">"page-title"</span><span class="tg">&gt;</span><span class="plain">飛梅と祈りの鶴 奉拝AR</span><span class="tg">&lt;/title&gt;</span></pre></div>
-    <div class="description">ブラウザのタブに表示されるページタイトル。<code>id="page-title"</code>を付けることで、DOMContentLoaded時にJavaScriptから多言語対応の文字列に書き換えられる。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;link</span> <span class="at">href=</span><span class="vl">"https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@700&amp;display=swap"</span> <span class="at">rel=</span><span class="vl">"stylesheet"</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">Google Fonts から <strong>Kaisei Decol</strong>（楷書・毛筆系の和風フォント）を読み込む。<code>ink-date-texture</code> コンポーネントが Canvas に縦書き日付を描画する際に使用する。ネットワーク不可の場合は Yu Mincho → Hiragino Mincho ProN へフォールバックする。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;script</span> <span class="at">src=</span><span class="vl">"https://aframe.io/releases/1.4.2/aframe.min.js"</span><span class="tg">&gt;&lt;/script&gt;</span></pre></div>
-    <div class="description">A-Frame（WebVR/ARフレームワーク）のライブラリを読み込む。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;script</span> <span class="at">src=</span><span class="vl">"https://cdn.jsdelivr.net/npm/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="026f6b6c662f637042332c302c30">[email&#160;protected]</a>/dist/mindar-image-aframe.prod.js"</span><span class="tg">&gt;&lt;/script&gt;</span></pre></div>
-    <div class="description">MindAR（画像認識ARライブラリ）を読み込む。カメラで特定画像を認識してARを表示する。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;script</span> <span class="at">src=</span><span class="vl">"https://cdn.jsdelivr.net/gh/c-frame/<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="f6979084979b93db938e82849785b6c1d8c6d8c6">[email&#160;protected]</a>/dist/aframe-extras.min.js"</span><span class="tg">&gt;&lt;/script&gt;</span></pre></div>
-    <div class="description">A-Frameの拡張機能（アニメーションミキサー等）を読み込む。</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== CSS ====== -->
-  <section id="sec-css">
-    <div class="section-header">
-      <div class="section-badge">二</div>
-      <h2>スタイル（CSS）</h2>
+    <!-- ②自前スキャンUI -->
+    <div id="scan-overlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:9990; pointer-events:none; flex-direction:column; align-items:center; justify-content:center;">
+      <p id="scan-msg" style="color:rgba(255,255,255,0.85); font-family:'Yu Mincho','Hiragino Mincho ProN',serif; font-size:16px; letter-spacing:2px; text-shadow:0 1px 4px rgba(0,0,0,0.8); margin:0;">御朱印をカメラに向けてください…</p>
+      <div style="margin-top:16px; width:180px; height:180px; border:2px solid rgba(212,175,55,0.7); border-radius:8px; box-shadow:0 0 20px rgba(212,175,55,0.3);"></div>
     </div>
 
-    <div class="code-block"><pre><span class="prop">a-scene .a-enter-vr-button</span>, <span class="prop">a-scene .a-enter-ar-button</span> { <span class="kw">display</span>: <span class="nm">none</span>; }</pre></div>
-    <div class="description">A-Frameが自動生成する「VR/ARに入る」ボタンを非表示にする。</div>
+    <div id="capture-btn">参拝の証を刻む</div>
 
-    <div class="code-block"><pre><span class="prop">#start-overlay</span> { <span class="kw">position</span>: <span class="nm">absolute</span>; <span class="kw">top</span>: <span class="nm">0</span>; <span class="kw">left</span>: <span class="nm">0</span>; <span class="kw">width</span>: <span class="nm">100%</span>; <span class="kw">height</span>: <span class="nm">100%</span>; ... }</pre></div>
-    <div class="description">スタート画面のオーバーレイを、画面全体を覆う黒い半透明レイヤーとして表示する設定。</div>
-
-    <div class="code-block"><pre><span class="kw">background-color</span>: <span class="fn">rgba</span>(<span class="nm">0, 0, 0, 0.9</span>); <span class="kw">z-index</span>: <span class="nm">9999</span>;</pre></div>
-    <div class="description">背景色を90%不透明の黒に。<code>z-index</code>で他の要素より前面に表示。</div>
-
-    <div class="code-block"><pre><span class="kw">display</span>: <span class="nm">flex</span>; <span class="kw">justify-content</span>: <span class="nm">center</span>; <span class="kw">align-items</span>: <span class="nm">center</span>; <span class="kw">flex-direction</span>: <span class="nm">column</span>;</pre></div>
-    <div class="description">フレックスボックスで、子要素を縦方向・中央揃えにレイアウト。</div>
-
-    <div class="code-block"><pre><span class="kw">color</span>: <span class="nm">white</span>; <span class="kw">font-family</span>: <span class="st">'Yu Mincho'</span>, <span class="st">'Hiragino Mincho ProN'</span>, serif; <span class="kw">cursor</span>: <span class="nm">pointer</span>;</pre></div>
-    <div class="description">文字色を白・和風明朝体フォント・カーソルをポインターに設定。</div>
-
-    <div class="code-block"><pre><span class="kw">transition</span>: <span class="prop">opacity</span> <span class="nm">1.5s</span> <span class="nm">ease</span>;</pre></div>
-    <div class="description">透明度が変わるとき1.5秒かけてフェードする。</div>
-
-    <div class="code-block"><pre><span class="prop">#start-overlay h1</span> { <span class="kw">font-size</span>: <span class="nm">26px</span>; <span class="kw">font-weight</span>: <span class="nm">normal</span>; <span class="kw">margin-bottom</span>: <span class="nm">20px</span>; <span class="kw">letter-spacing</span>: <span class="nm">2px</span>; }</pre></div>
-    <div class="description">タイトルテキストのフォントサイズ・太さ・余白・字間を設定。</div>
-
-    <div class="code-block"><pre><span class="prop">#capture-btn</span> { <span class="kw">display</span>: <span class="nm">none</span>; <span class="kw">position</span>: <span class="nm">absolute</span>; <span class="kw">bottom</span>: <span class="nm">40px</span>; <span class="kw">left</span>: <span class="nm">50%</span>; <span class="kw">transform</span>: <span class="fn">translateX</span>(<span class="nm">-50%</span>); ... }</pre></div>
-    <div class="description">「参拝の証を刻む」ボタンを初期状態で非表示・画面下部中央に固定配置。</div>
-
-    <div class="code-block"><pre><span class="kw">z-index</span>: <span class="nm">9998</span>; <span class="kw">background</span>: <span class="fn">rgba</span>(<span class="nm">212, 175, 55, 0.9</span>); <span class="kw">color</span>: <span class="nm">#000</span>;</pre></div>
-    <div class="description">3D空間の上に表示（<code>z-index</code>）・金色背景・黒文字。</div>
-
-    <div class="code-block"><pre><span class="kw">box-shadow</span>: <span class="nm">0 4px 10px</span> <span class="fn">rgba</span>(<span class="nm">0,0,0,0.5</span>); <span class="kw">cursor</span>: <span class="nm">pointer</span>; <span class="kw">transition</span>: <span class="prop">background</span> <span class="nm">0.3s</span>;</pre></div>
-    <div class="description">影・ポインターカーソル・背景色の変化を0.3秒でアニメーション。</div>
-
-    <div class="code-block"><pre><span class="prop">#capture-btn:active</span> { <span class="kw">background</span>: <span class="fn">rgba</span>(<span class="nm">255, 215, 0, 1</span>); }</pre></div>
-    <div class="description">ボタンを押したとき（タップ中）に純金色に変わる。</div>
-
-    <div class="code-block"><pre><span class="prop">#result-modal</span> { <span class="kw">display</span>: <span class="nm">none</span>; <span class="kw">position</span>: <span class="nm">absolute</span>; <span class="kw">top</span>: <span class="nm">0</span>; ... <span class="kw">background</span>: <span class="fn">rgba</span>(<span class="nm">0,0,0,0.95</span>); <span class="kw">z-index</span>: <span class="nm">10000</span>; }</pre></div>
-    <div class="description">撮影結果モーダルを初期非表示・全画面・最前面（z-index: 10000）に表示する設定。</div>
-
-    <div class="code-block"><pre><span class="prop">#result-image</span> { <span class="kw">max-width</span>: <span class="nm">90%</span>; <span class="kw">max-height</span>: <span class="nm">75%</span>; <span class="kw">border</span>: <span class="nm">2px solid #D4AF37</span>; ... }</pre></div>
-    <div class="description">結果画像を画面の90%幅・75%高さ以内に収め、金色のボーダーを付ける。</div>
-
-    <div class="code-block"><pre><span class="prop">#close-modal</span> { <span class="kw">margin-top</span>: <span class="nm">25px</span>; <span class="kw">padding</span>: <span class="nm">10px 40px</span>; <span class="kw">border</span>: <span class="nm">1px solid #fff</span>; <span class="kw">border-radius</span>: <span class="nm">20px</span>; }</pre></div>
-    <div class="description">「戻る」ボタンの余白・白い枠・丸い角・ポインター。</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== カスタムコンポーネント ====== -->
-  <section id="sec-petal">
-    <div class="section-header">
-      <div class="section-badge">三</div>
-      <h2>カスタムA-Frameコンポーネント</h2>
+    <div id="result-modal">
+      <p id="save-hint">画像を長押しして保存してください</p>
+      <img id="result-image" src="" alt="参拝の証">
+      
+      <button id="share-btn">SNSでシェアする</button>
+      
+      <div id="close-modal">戻る</div>
     </div>
 
-    <h3>petal-system（花びらエフェクト）</h3>
-    <div class="component-tag">🌸 AFRAME.registerComponent('petal-system', ...)</div>
-
-    <div class="code-block"><pre><span class="fn">AFRAME</span>.<span class="fn">registerComponent</span>(<span class="st">'petal-system'</span>, {</pre></div>
-    <div class="description">A-Frameに「petal-system」という新しいコンポーネントを登録する。</div>
-
-    <div class="code-block"><pre><span class="prop">schema</span>: { <span class="prop">count</span>: {<span class="kw">type</span>: <span class="st">'int'</span>, <span class="kw">default</span>: <span class="nm">40</span>}, <span class="prop">texture</span>: {<span class="kw">type</span>: <span class="st">'string'</span>, <span class="kw">default</span>: <span class="st">'#umeTexture'</span>}, <span class="prop">area</span>: {<span class="kw">type</span>: <span class="st">'number'</span>, <span class="kw">default</span>: <span class="nm">0.8</span>} },</pre></div>
-    <div class="description">プロパティの定義：花びら数（デフォルト40枚）・テクスチャ・広がる範囲（0.8）。</div>
-
-    <div class="code-block"><pre><span class="kw">init</span>: <span class="kw">function</span> () { <span class="kw">this</span>.<span class="prop">petals</span> = [];</pre></div>
-    <div class="description">初期化関数。花びらデータを保持する配列を作成。</div>
-
-    <div class="code-block"><pre><span class="kw">for</span> (<span class="kw">let</span> <span class="prop">i</span> = <span class="nm">0</span>; <span class="prop">i</span> &lt; <span class="kw">this</span>.<span class="prop">data</span>.<span class="prop">count</span>; <span class="prop">i</span>++) {</pre></div>
-    <div class="description">花びらの数だけループする。</div>
-
-    <div class="code-block"><pre><span class="kw">let</span> <span class="prop">el</span> = <span class="prop">document</span>.<span class="fn">createElement</span>(<span class="st">'a-image'</span>); <span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'src'</span>, <span class="kw">this</span>.<span class="prop">data</span>.<span class="prop">texture</span>);</pre></div>
-    <div class="description">A-Frame用の画像要素を作成し、花びらのテクスチャ画像を設定。</div>
-
-    <div class="code-block"><pre><span class="kw">let</span> <span class="prop">size</span> = <span class="prop">Math</span>.<span class="fn">random</span>() * <span class="nm">0.03</span> + <span class="nm">0.02</span>; <span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'scale'</span>, <span class="st">`${size} ${size} ${size}`</span>);</pre></div>
-    <div class="description">0.02〜0.05のランダムなサイズを設定（大小バラバラの花びら）。</div>
-
-    <div class="code-block"><pre><span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'transparent'</span>, <span class="st">'true'</span>); <span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'alpha-test'</span>, <span class="st">'0.1'</span>);</pre></div>
-    <div class="description">透過表示を有効にし、透明度0.1以下のピクセルを描画しない。</div>
-
-    <div class="code-block"><pre><span class="kw">this</span>.<span class="prop">el</span>.<span class="fn">appendChild</span>(<span class="prop">el</span>);</pre></div>
-    <div class="description">作成した花びら要素をこのコンポーネントの親エンティティに追加。</div>
-
-    <div class="code-block"><pre><span class="prop">speedY</span>: <span class="prop">Math</span>.<span class="fn">random</span>() * <span class="nm">0.002</span> + <span class="nm">0.001</span>, <span class="prop">speedAngle</span>: (<span class="prop">Math</span>.<span class="fn">random</span>() - <span class="nm">0.5</span>) * <span class="nm">0.02</span>,</pre></div>
-    <div class="description">Y方向の落下速度・旋回速度をランダムに設定。</div>
-
-    <div class="code-block"><pre><span class="prop">rotX</span>: <span class="prop">Math</span>.<span class="fn">random</span>() * <span class="nm">360</span>, <span class="prop">rotY</span>: <span class="prop">Math</span>.<span class="fn">random</span>() * <span class="nm">360</span>, <span class="prop">rotZ</span>: <span class="prop">Math</span>.<span class="fn">random</span>() * <span class="nm">360</span>,</pre></div>
-    <div class="description">初期回転角度（XYZ）をランダムに設定（バラバラの向き）。</div>
-
-    <div class="code-block"><pre><span class="prop">rotSpeedX</span>: (<span class="prop">Math</span>.<span class="fn">random</span>() - <span class="nm">0.5</span>) * <span class="nm">5</span>, <span class="prop">rotSpeedY</span>: (<span class="prop">Math</span>.<span class="fn">random</span>() - <span class="nm">0.5</span>) * <span class="nm">5</span>, ...</pre></div>
-    <div class="description">各軸の回転速度をランダムに設定（クルクル回りながら落ちる）。</div>
-
-    <div class="code-block"><pre><span class="kw">tick</span>: <span class="kw">function</span> () { <span class="kw">this</span>.<span class="prop">petals</span>.<span class="fn">forEach</span>(<span class="prop">p</span> => {</pre></div>
-    <div class="description">毎フレーム呼ばれる更新関数。各花びらをループ処理。</div>
-
-    <div class="code-block"><pre><span class="prop">p</span>.<span class="prop">angle</span> += <span class="prop">p</span>.<span class="prop">speedAngle</span>; <span class="prop">p</span>.<span class="prop">y</span> += <span class="prop">p</span>.<span class="prop">speedY</span>; <span class="kw">if</span> (<span class="prop">p</span>.<span class="prop">y</span> &gt; <span class="nm">1.5</span>) <span class="prop">p</span>.<span class="prop">y</span> = <span class="nm">-0.5</span>;</pre></div>
-    <div class="description">角度・高さを更新。高さが1.5を超えたら-0.5にリセット（ループ落下）。</div>
-
-    <div class="code-block"><pre><span class="kw">let</span> <span class="prop">x</span> = <span class="prop">Math</span>.<span class="fn">cos</span>(<span class="prop">p</span>.<span class="prop">angle</span>) * <span class="prop">p</span>.<span class="prop">radius</span>; <span class="kw">let</span> <span class="prop">z</span> = <span class="prop">Math</span>.<span class="fn">sin</span>(<span class="prop">p</span>.<span class="prop">angle</span>) * <span class="prop">p</span>.<span class="prop">radius</span>;</pre></div>
-    <div class="description">角度と半径から円軌道のXZ座標を計算（螺旋状に旋回）。</div>
-
-    <div class="code-block"><pre><span class="prop">p</span>.<span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'position'</span>, <span class="st">`${x} ${p.y} ${z}`</span>);</pre></div>
-    <div class="description">計算した座標を花びら要素に反映。</div>
-
-    <div class="code-block"><pre><span class="prop">p</span>.<span class="prop">rotX</span> += <span class="prop">p</span>.<span class="prop">rotSpeedX</span>; <span class="prop">p</span>.<span class="prop">rotY</span> += <span class="prop">p</span>.<span class="prop">rotSpeedY</span>; <span class="prop">p</span>.<span class="prop">rotZ</span> += <span class="prop">p</span>.<span class="prop">rotSpeedZ</span>;</pre></div>
-    <div class="description">各軸の回転角度を更新。</div>
-
-    <div class="code-block"><pre><span class="prop">p</span>.<span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'rotation'</span>, <span class="st">`${p.rotX} ${p.rotY} ${p.rotZ}`</span>);</pre></div>
-    <div class="description">更新した回転角度を花びら要素に反映。</div>
-  </section>
-
-  <!-- rain-system -->
-  <section id="sec-rain">
-    <h3>rain-system（雨エフェクト）</h3>
-    <div class="component-tag">🌧 AFRAME.registerComponent('rain-system', ...)</div>
-
-    <div class="code-block"><pre><span class="fn">AFRAME</span>.<span class="fn">registerComponent</span>(<span class="st">'rain-system'</span>, {
-  <span class="prop">schema</span>: { <span class="prop">count</span>: {<span class="kw">type</span>: <span class="st">'int'</span>, <span class="kw">default</span>: <span class="nm">100</span>}, <span class="prop">area</span>: {<span class="kw">type</span>: <span class="st">'number'</span>, <span class="kw">default</span>: <span class="nm">1.0</span>} },</pre></div>
-    <div class="description">雨粒数100・範囲1.0のデフォルト値を持つコンポーネント。</div>
-
-    <div class="code-block"><pre><span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'geometry'</span>, <span class="st">'primitive: plane; width: 0.002; height: 0.08'</span>);</pre></div>
-    <div class="description">非常に細長い板（幅0.002・高さ0.08）を雨粒として生成。</div>
-
-    <div class="code-block"><pre><span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'material'</span>, <span class="st">'color: #aaccff; shader: flat; transparent: true; opacity: 0.5'</span>);</pre></div>
-    <div class="description">淡い青色・フラットシェーダー・半透明で雨粒らしく見せる。</div>
-
-    <div class="code-block"><pre><span class="prop">p</span>.<span class="prop">y</span> -= <span class="prop">p</span>.<span class="prop">speed</span>; <span class="kw">if</span> (<span class="prop">p</span>.<span class="prop">y</span> &lt; <span class="nm">-0.5</span>) { <span class="prop">p</span>.<span class="prop">y</span> = <span class="nm">1.5</span>; <span class="prop">p</span>.<span class="prop">x</span> = ...; <span class="prop">p</span>.<span class="prop">z</span> = ...; }</pre></div>
-    <div class="description">雨粒を下に落とし、画面外（-0.5以下）に出たら上（1.5）にリセット。X/Zもランダム更新。</div>
-  </section>
-
-  <!-- snow-system -->
-  <section id="sec-snow">
-    <h3>snow-system（雪エフェクト）</h3>
-    <div class="component-tag">❄ AFRAME.registerComponent('snow-system', ...)</div>
-
-    <div class="code-block"><pre><span class="fn">AFRAME</span>.<span class="fn">registerComponent</span>(<span class="st">'snow-system'</span>, {
-  <span class="prop">schema</span>: { <span class="prop">count</span>: {<span class="kw">type</span>: <span class="st">'int'</span>, <span class="kw">default</span>: <span class="nm">80</span>}, <span class="prop">area</span>: {<span class="kw">type</span>: <span class="st">'number'</span>, <span class="kw">default</span>: <span class="nm">1.0</span>} },</pre></div>
-    <div class="description">雪片数80・範囲1.0のデフォルト値。</div>
-
-    <div class="code-block"><pre><span class="kw">let</span> <span class="prop">size</span> = <span class="prop">Math</span>.<span class="fn">random</span>() * <span class="nm">0.005</span> + <span class="nm">0.002</span>;
-<span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'geometry'</span>, <span class="st">`primitive: circle; radius: ${size}`</span>);</pre></div>
-    <div class="description">小さな丸（0.002〜0.007）を雪片として生成。</div>
-
-    <div class="code-block"><pre><span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'material'</span>, <span class="st">'color: #ffffff; shader: flat; transparent: true; opacity: 0.8'</span>);</pre></div>
-    <div class="description">白色・フラットシェーダー・やや不透明で雪らしく表示。</div>
-
-    <div class="code-block"><pre><span class="prop">sway</span>: <span class="prop">Math</span>.<span class="fn">random</span>() * <span class="prop">Math</span>.<span class="prop">PI</span> * <span class="nm">2</span>, <span class="prop">swaySpeed</span>: <span class="prop">Math</span>.<span class="fn">random</span>() * <span class="nm">0.02</span></pre></div>
-    <div class="description">雪片が左右にゆらゆら揺れるための位相・速度を設定。</div>
-
-    <div class="code-block"><pre><span class="prop">p</span>.<span class="prop">sway</span> += <span class="prop">p</span>.<span class="prop">swaySpeed</span>; <span class="prop">p</span>.<span class="prop">y</span> -= <span class="prop">p</span>.<span class="prop">speedY</span>; <span class="prop">p</span>.<span class="prop">x</span> += <span class="prop">Math</span>.<span class="fn">sin</span>(<span class="prop">p</span>.<span class="prop">sway</span>) * <span class="nm">0.002</span>;</pre></div>
-    <div class="description">毎フレーム：揺れ角を更新、下方向に落とし、sin波でX座標を左右に揺らす。</div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="prop">p</span>.<span class="prop">y</span> &lt; <span class="nm">-0.5</span>) { <span class="prop">p</span>.<span class="prop">y</span> = <span class="nm">1.5</span>; <span class="prop">p</span>.<span class="prop">x</span> = (<span class="prop">Math</span>.<span class="fn">random</span>() - <span class="nm">0.5</span>) * <span class="kw">this</span>.<span class="prop">data</span>.<span class="prop">area</span>; }</pre></div>
-    <div class="description">画面外に落ちた雪片を上にリセット。X座標もランダムに変える。</div>
-  </section>
-
-  <!-- boiling-effect -->
-  <section id="sec-boiling">
-    <h3>boiling-effect（揺らぎエフェクト）</h3>
-    <div class="component-tag">〜 AFRAME.registerComponent('boiling-effect', ...)</div>
-
-    <div class="code-block"><pre><span class="prop">schema</span>: { <span class="prop">intensity</span>: {<span class="kw">type</span>: <span class="st">'number'</span>, <span class="kw">default</span>: <span class="nm">0.0015</span>}, <span class="prop">speed</span>: {<span class="kw">type</span>: <span class="st">'number'</span>, <span class="kw">default</span>: <span class="nm">100</span>} },</pre></div>
-    <div class="description">墨が広がるような揺らぎ強度・更新間隔のデフォルト設定。</div>
-
-    <div class="code-block"><pre><span class="kw">init</span>: <span class="kw">function</span>() { <span class="kw">this</span>.<span class="prop">lastTime</span> = <span class="nm">0</span>; <span class="kw">this</span>.<span class="prop">baseX</span> = <span class="kw">this</span>.<span class="prop">el</span>.<span class="prop">object3D</span>.<span class="prop">position</span>.<span class="prop">x</span>; <span class="kw">this</span>.<span class="prop">baseY</span> = ... },</pre></div>
-    <div class="description">最終更新時間と、元の基準位置XYを記憶する。</div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="prop">time</span> - <span class="kw">this</span>.<span class="prop">lastTime</span> &lt; <span class="kw">this</span>.<span class="prop">data</span>.<span class="prop">speed</span>) <span class="kw">return</span>;</pre></div>
-    <div class="description">前回更新から<code>speed</code>ミリ秒経っていなければ処理をスキップ（パフォーマンス制御）。</div>
-
-    <div class="code-block"><pre><span class="kw">let</span> <span class="prop">dx</span> = (<span class="prop">Math</span>.<span class="fn">random</span>() - <span class="nm">0.5</span>) * <span class="kw">this</span>.<span class="prop">data</span>.<span class="prop">intensity</span>; <span class="kw">let</span> <span class="prop">dy</span> = ...; <span class="kw">let</span> <span class="prop">dr</span> = (<span class="prop">Math</span>.<span class="fn">random</span>() - <span class="nm">0.5</span>) * <span class="nm">0.01</span>;</pre></div>
-    <div class="description">XY方向の微小なランダムオフセットと、ランダムな回転量を生成。</div>
-
-    <div class="code-block"><pre><span class="kw">this</span>.<span class="prop">el</span>.<span class="prop">object3D</span>.<span class="prop">position</span>.<span class="prop">x</span> = <span class="kw">this</span>.<span class="prop">baseX</span> + <span class="prop">dx</span>;
-<span class="kw">this</span>.<span class="prop">el</span>.<span class="prop">object3D</span>.<span class="prop">rotation</span>.<span class="prop">z</span> = <span class="prop">dr</span>;</pre></div>
-    <div class="description">基準位置にオフセットを加えて要素を微妙にずらし、Z軸でわずかに傾ける（震えるような演出）。</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== ink-date-texture ====== -->
-  <section id="sec-inkdate">
-    <div class="section-header">
-      <div class="section-badge">四</div>
-      <h2>ink-date-texture コンポーネント</h2>
-    </div>
-
-    <div class="component-tag">🖌️ AFRAME.registerComponent('ink-date-texture', ...)</div>
-
-    <div class="description">
-      <code>ink_aura.png</code> を表示する際、右上に今日の日付を<strong>和暦・漢数字・縦書き</strong>で重ねて表示するカスタムコンポーネント。A-Frameの3D空間内にHTMLを重ねることはできないため、<code>&lt;canvas&gt;</code>上に画像とテキストを合成し、そのcanvasをA-Frameのテクスチャとして差し替える方式をとる。
-    </div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">img</span> = <span class="prop">document</span>.<span class="fn">querySelector</span>(<span class="st">'#inkAura'</span>);</pre></div>
-    <div class="description">あらかじめ <code>&lt;a-assets&gt;</code> で読み込まれた <code>ink_aura.png</code> の <code>&lt;img&gt;</code> 要素を取得する。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">canvas</span> = <span class="prop">document</span>.<span class="fn">createElement</span>(<span class="st">'canvas'</span>);
-<span class="prop">canvas</span>.<span class="prop">width</span> = <span class="nm">512</span>; <span class="prop">canvas</span>.<span class="prop">height</span> = <span class="nm">512</span>;
-<span class="prop">ctx</span>.<span class="fn">drawImage</span>(<span class="prop">img</span>, <span class="nm">0</span>, <span class="nm">0</span>, <span class="nm">512</span>, <span class="nm">512</span>);</pre></div>
-    <div class="description">512×512のcanvasを作成し、まず <code>ink_aura.png</code> をそのまま描画する。これが日付テキストの背景レイヤーになる。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">eras</span> = [
-  { <span class="prop">name</span>: <span class="st">'令和'</span>, <span class="prop">start</span>: <span class="kw">new</span> <span class="fn">Date</span>(<span class="nm">2019</span>, <span class="nm">4</span>, <span class="nm">1</span>) },
-  { <span class="prop">name</span>: <span class="st">'平成'</span>, <span class="prop">start</span>: <span class="kw">new</span> <span class="fn">Date</span>(<span class="nm">1989</span>, <span class="nm">0</span>, <span class="nm">8</span>) },
-  <span class="cm">// 昭和・大正・明治…</span>
-];</pre></div>
-    <div class="description">元号テーブルを降順で定義。<code>eras.find(e =&gt; now &gt;= e.start)</code>で現在日時に対応する元号を自動選択する。将来の改元時はこのテーブルの先頭に追加するだけでよい。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">gyYear</span> = <span class="prop">now</span>.<span class="fn">getFullYear</span>() - <span class="prop">era</span>.<span class="prop">start</span>.<span class="fn">getFullYear</span>() + <span class="nm">1</span>;
-<span class="kw">const</span> <span class="prop">gyYearStr</span> = <span class="prop">gyYear</span> === <span class="nm">1</span> ? <span class="st">'元'</span> : <span class="prop">kanjiNums</span>[<span class="prop">gyYear</span>];</pre></div>
-    <div class="description">元号年を計算し、1年目のみ「元」と表示する（慣例：令和元年）。2年目以降は漢数字テーブルで変換する。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">kanjiNums</span> = [<span class="st">'〇'</span>,<span class="st">'一'</span>,<span class="st">'二'</span>,...,<span class="st">'十'</span>,<span class="st">'十一'</span>,...,<span class="st">'三十一'</span>];</pre></div>
-    <div class="description">0〜31を漢数字に変換するテーブル。配列インデックスと数値が一致するため、<code>kanjiNums[12]</code>→「十二」のように直接参照できる。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">dateStr</span> = <span class="st">`${era.name}${gyYearStr}年${month}月${day}日`</span>;
-<span class="kw">const</span> <span class="prop">charArray</span> = <span class="prop">dateStr</span>.<span class="fn">split</span>(<span class="st">''</span>);</pre></div>
-    <div class="description">「令和七年三月十二日」のような文字列を生成し、<code>split('')</code>で一文字ずつの配列に展開する。縦書きはcanvasに一文字ずつ縦方向に並べて描くことで実現する。</div>
-
-    <div class="code-block"><pre><span class="prop">ctx</span>.<span class="prop">font</span> = <span class="st">`bold ${fontSize}px "Kaisei Decol", "Yu Mincho", serif`</span>;
-<span class="prop">charArray</span>.<span class="fn">forEach</span>((<span class="prop">ch</span>, <span class="prop">i</span>) => {
-  <span class="kw">const</span> <span class="prop">y</span> = <span class="prop">marginTop</span> + <span class="prop">fontSize</span> + <span class="prop">i</span> * <span class="prop">lineHeight</span>;
-  <span class="cm">// ① 縁取り（黒）</span>
-  <span class="prop">ctx</span>.<span class="prop">shadowColor</span> = <span class="st">'transparent'</span>;
-  <span class="prop">ctx</span>.<span class="prop">strokeStyle</span> = <span class="st">'rgba(0, 0, 0, 0.9)'</span>;
-  <span class="prop">ctx</span>.<span class="prop">lineWidth</span>   = <span class="nm">5</span>;
-  <span class="prop">ctx</span>.<span class="prop">lineJoin</span>    = <span class="st">'round'</span>;
-  <span class="prop">ctx</span>.<span class="fn">strokeText</span>(<span class="prop">ch</span>, <span class="prop">x</span>, <span class="prop">y</span>);
-  <span class="cm">// ② 本体（金色）</span>
-  <span class="prop">ctx</span>.<span class="prop">fillStyle</span>   = <span class="st">'#D4AF37'</span>;
-  <span class="prop">ctx</span>.<span class="prop">shadowColor</span> = <span class="st">'rgba(0, 0, 0, 0.5)'</span>;
-  <span class="prop">ctx</span>.<span class="prop">shadowBlur</span>  = <span class="nm">4</span>;
-  <span class="prop">ctx</span>.<span class="fn">fillText</span>(<span class="prop">ch</span>, <span class="prop">x</span>, <span class="prop">y</span>);
-});</pre></div>
-    <div class="description">一文字ずつ2段階で描画することで視認性を確保する。まず <code>strokeText</code> で黒の縁取り（線幅5・角丸）を描き、その上から <code>fillText</code> で金色（<code>#D4AF37</code>）を重ねる。縁取りを先に描くことで文字の輪郭が背景の墨色に溶け込まず、どんな背景でも浮き上がって見える。<code>lineJoin: 'round'</code> で角が尖らず筆文字らしい丸みが出る。</div>
-
-    <div class="code-block"><pre><span class="prop">el</span>.<span class="fn">setAttribute</span>(<span class="st">'material'</span>, { <span class="prop">shader</span>: <span class="st">'flat'</span>, <span class="prop">src</span>: <span class="prop">canvas</span>, <span class="prop">transparent</span>: <span class="kw">true</span>, <span class="prop">opacity</span>: <span class="nm">0</span> });</pre></div>
-    <div class="description">合成済みcanvasをA-Frameのmaterialの<code>src</code>に直接渡すことでテクスチャとして適用する。<code>opacity: 0</code>は初期非表示のまま維持し、既存の<code>animation__bleed</code>（墨出現アニメーション）がそのまま制御する。</div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="prop">document</span>.<span class="prop">fonts</span> &amp;&amp; <span class="prop">document</span>.<span class="prop">fonts</span>.<span class="prop">ready</span>) {
-  <span class="prop">document</span>.<span class="prop">fonts</span>.<span class="prop">ready</span>.<span class="fn">then</span>(<span class="prop">drawTexture</span>);
-} <span class="kw">else</span> {
-  <span class="fn">setTimeout</span>(<span class="prop">drawTexture</span>, <span class="nm">1000</span>);
-}</pre></div>
-    <div class="description"><code>document.fonts.ready</code>でWebフォントの読み込み完了を待ってからcanvasに描画する。未対応ブラウザでは1秒後にフォールバック実行する。フォントが確定する前に描画するとシステムフォントで表示されてしまうため、この待機処理が重要。</div>
-
-    <div class="flow">コンポーネント init() 実行
-  │
-  ├─ #inkAura の &lt;img&gt; を取得
-  ├─ document.fonts.ready を待機（Kaisei Decolの読み込み完了まで）
-  │
-  └─ drawTexture()
-       ├─ canvas 512×512 に ink_aura.png を描画
-       ├─ 元号テーブルで和暦を算出（令和七年 etc.）
-       ├─ 漢数字テーブルで月・日を変換（三月・十二日 etc.）
-       ├─ 文字列を split('') で1文字ずつ縦に描画（右上配置）
-       │    ├─ strokeText：黒縁取り（線幅5・角丸）
-       │    └─ fillText ：金色 #D4AF37 + 影
-       └─ canvas を A-Frame material の src に差し替え</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== body ====== -->
-  <section id="sec-body">
-    <div class="section-header">
-      <div class="section-badge">五</div>
-      <h2>&lt;body&gt; セクション（HTML要素）</h2>
-    </div>
-
-    <div class="code-block"><pre><span class="tg">&lt;div</span> <span class="at">id=</span><span class="vl">"start-overlay"</span><span class="tg">&gt;</span>
-  <span class="tg">&lt;h1&gt;</span>参拝を開始します<span class="tg">&lt;/h1&gt;</span>
-  <span class="tg">&lt;p&gt;</span>スマートフォンを持ったまま軽く一礼し、<span class="tg">&lt;br&gt;</span>画面をタップしてください<span class="tg">&lt;/p&gt;</span>
-<span class="tg">&lt;/div&gt;</span></pre></div>
-    <div class="description">起動時に全画面表示されるオーバーレイ。タイトルと操作説明を表示。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;div</span> <span class="at">id=</span><span class="vl">"capture-btn"</span><span class="tg">&gt;</span>参拝の証を刻む<span class="tg">&lt;/div&gt;</span></pre></div>
-    <div class="description">ARトラッキング中に表示される撮影ボタン。初期状態は非表示（CSSで<code>display:none</code>）。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;div</span> <span class="at">id=</span><span class="vl">"result-modal"</span><span class="tg">&gt;</span>
-  <span class="tg">&lt;p&gt;</span>画像を長押しして保存してください<span class="tg">&lt;/p&gt;</span>
-  <span class="tg">&lt;img</span> <span class="at">id=</span><span class="vl">"result-image"</span> <span class="at">src=</span><span class="vl">""</span> <span class="at">alt=</span><span class="vl">"参拝の証"</span><span class="tg">&gt;</span>
-  <span class="tg">&lt;div</span> <span class="at">id=</span><span class="vl">"close-modal"</span><span class="tg">&gt;</span>戻る<span class="tg">&lt;/div&gt;</span>
-<span class="tg">&lt;/div&gt;</span></pre></div>
-    <div class="description">撮影後に表示されるモーダル。画像の保存方法の説明・撮影画像・閉じるボタン。</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== A-Frameシーン ====== -->
-  <section id="sec-aframe">
-    <div class="section-header">
-      <div class="section-badge">六</div>
-      <h2>A-Frameシーン（AR空間）</h2>
-    </div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-scene</span>
-  <span class="at">mindar-image=</span><span class="vl">"imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: yes;"</span></pre></div>
-    <div class="description">ARシーンの開始。<code>targets.mind</code>の画像ターゲットを使い、自動スタート・スキャンUI表示。</div>
-
-    <div class="code-block"><pre><span class="at">color-space=</span><span class="vl">"sRGB"</span> <span class="at">renderer=</span><span class="vl">"colorManagement: true; preserveDrawingBuffer: true;"</span></pre></div>
-    <div class="description">色空間をsRGB・カラーマネジメント有効・スクリーンショット用にバッファを保持。</div>
-
-    <div class="code-block"><pre><span class="at">vr-mode-ui=</span><span class="vl">"enabled: false"</span> <span class="at">device-orientation-permission-ui=</span><span class="vl">"enabled: false"</span></pre></div>
-    <div class="description">VRモードボタンと端末向き許可UIを非表示に。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-assets&gt;</span></pre></div>
-    <div class="description">事前に読み込むアセット（画像・モデル・音声）をまとめるタグ。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;img</span> <span class="at">id=</span><span class="vl">"umeTexture"</span> <span class="at">src=</span><span class="vl">"./ume_petal.png"</span> <span class="at">crossorigin=</span><span class="vl">"anonymous"</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">梅の花びらのテクスチャ画像を読み込む（クロスオリジン対応）。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;img</span> <span class="at">id=</span><span class="vl">"kamonTexture"</span> <span class="at">src=</span><span class="vl">"./kamon.png"</span> <span class="at">crossorigin=</span><span class="vl">"anonymous"</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">家紋画像を読み込む。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;img</span> <span class="at">id=</span><span class="vl">"inkAura"</span> <span class="at">src=</span><span class="vl">"./ink_aura.png"</span> <span class="at">crossorigin=</span><span class="vl">"anonymous"</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">墨が広がるオーラ画像を読み込む。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-asset-item</span> <span class="at">id=</span><span class="vl">"orizuruModel"</span> <span class="at">src=</span><span class="vl">"./oritsuru_merrygoround.glb"</span><span class="tg">&gt;&lt;/a-asset-item&gt;</span></pre></div>
-    <div class="description">折り鶴の3Dモデル（GLBファイル）を読み込む。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;audio</span> <span class="at">id=</span><span class="vl">"sacredAudio"</span> <span class="at">src=</span><span class="vl">"./tenmangu_ambient.mp3"</span> <span class="at">preload=</span><span class="vl">"auto"</span> <span class="at">loop</span><span class="tg">&gt;&lt;/audio&gt;</span></pre></div>
-    <div class="description">天満宮の環境音（BGM）をループ再生用に読み込む。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-light</span> <span class="at">id=</span><span class="vl">"ambient-light"</span> <span class="at">type=</span><span class="vl">"ambient"</span> <span class="at">color=</span><span class="vl">"#ffffff"</span> <span class="at">intensity=</span><span class="vl">"2.0"</span><span class="tg">&gt;&lt;/a-light&gt;</span></pre></div>
-    <div class="description">シーン全体を照らす環境光（白・強度2.0）を設置。時間帯で色が変わる。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-camera</span> <span class="at">position=</span><span class="vl">"0 0 0"</span> <span class="at">look-controls=</span><span class="vl">"enabled: false"</span><span class="tg">&gt;&lt;/a-camera&gt;</span></pre></div>
-    <div class="description">カメラ位置を原点に固定。ドラッグで視点操作できないよう無効化。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-entity</span> <span class="at">id=</span><span class="vl">"target0"</span> <span class="at">mindar-image-target=</span><span class="vl">"targetIndex: 0"</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">ターゲット画像0番を認識したときに子要素を表示するエンティティ。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-entity</span> <span class="at">id=</span><span class="vl">"manifestation"</span> <span class="at">visible=</span><span class="vl">"false"</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">AR出現コンテンツのまとめ。初期状態は非表示で、画像認識時に表示される。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-image</span> <span class="at">id=</span><span class="vl">"inkManifestation"</span> <span class="at">src=</span><span class="vl">"#inkAura"</span> <span class="at">position=</span><span class="vl">"0 0 0.02"</span> <span class="at">scale=</span><span class="vl">"1.5 1.5 1"</span>
-  <span class="at">material=</span><span class="vl">"shader: flat; transparent: true; depthWrite: false; opacity: 0;"</span>
-  <span class="at">boiling-effect=</span><span class="vl">"intensity: 0.002; speed: 120;"</span> <span class="at">ink-date-texture</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">墨が広がるオーラ画像（z=0.02の位置・1.5倍サイズ・初期透明）。<code>boiling-effect</code>で震える演出を付加。<code>ink-date-texture</code>コンポーネントにより、フォント読み込み後に和暦・漢数字の縦書き日付をCanvasテクスチャとして右上に焼き込む。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-entity</span> <span class="at">position=</span><span class="vl">"0 0 0.05"</span> <span class="at">animation=</span><span class="vl">"property: scale; from: 0.75 0.75 0.75; to: 0.85 0.85 0.85; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine;"</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">親エンティティを4秒かけて0.75〜0.85の大きさで呼吸するようにスケールアニメーション。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-image</span> <span class="at">src=</span><span class="vl">"#kamonTexture"</span> <span class="at">material=</span><span class="vl">"transparent: true; blending: additive; opacity: 0.8;"</span>
-  <span class="at">animation=</span><span class="vl">"property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;"</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">家紋画像を加算合成（発光風）・30秒かけてゆっくり1回転させる。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-gltf-model</span> <span class="at">src=</span><span class="vl">"#orizuruModel"</span> <span class="at">position=</span><span class="vl">"0 0 0.1"</span> <span class="at">scale=</span><span class="vl">"0.1 0.1 0.1"</span> <span class="at">animation-mixer</span><span class="tg">&gt;</span></pre></div>
-    <div class="description">折り鶴の3Dモデルを少し手前（z=0.1）・10分の1サイズで表示。アニメーション再生を有効化。</div>
-
-    <div class="code-block"><pre><span class="tg">&lt;a-entity</span> <span class="at">id=</span><span class="vl">"effect-clear"</span> <span class="at">petal-system=</span><span class="vl">"count: 40; area: 0.8;"</span> <span class="at">visible=</span><span class="vl">"true"</span><span class="tg">&gt;&lt;/a-entity&gt;</span>
-<span class="tg">&lt;a-entity</span> <span class="at">id=</span><span class="vl">"effect-rain"</span>  <span class="at">rain-system=</span><span class="vl">"count: 100; area: 0.8;"</span> <span class="at">visible=</span><span class="vl">"false"</span><span class="tg">&gt;&lt;/a-entity&gt;</span>
-<span class="tg">&lt;a-entity</span> <span class="at">id=</span><span class="vl">"effect-snow"</span>  <span class="at">snow-system=</span><span class="vl">"count: 80; area: 0.8;"</span>  <span class="at">visible=</span><span class="vl">"false"</span><span class="tg">&gt;&lt;/a-entity&gt;</span></pre></div>
-    <div class="description">天気に応じた3種のエフェクト。晴れ（花びら）はデフォルト表示、雨・雪は初期非表示。</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== JavaScript ====== -->
-  <section id="sec-js">
-    <div class="section-header">
-      <div class="section-badge">七</div>
-      <h2>JavaScript（ロジック）</h2>
-    </div>
-
-    <div class="code-block"><pre><span class="kw">let</span> <span class="prop">currentWeather</span> = <span class="st">'clear'</span>;</pre></div>
-    <div class="description">現在の天気をデフォルト「晴れ」で初期化。</div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="prop">hour</span> &gt;= <span class="nm">5</span>  &amp;&amp; <span class="prop">hour</span> &lt; <span class="nm">11</span>) { <span class="prop">lightColor</span> = <span class="st">"#e6f0ff"</span>; <span class="prop">timeMsg</span> = <span class="st">"朝霧の"</span>; }
-<span class="kw">else if</span> (<span class="prop">hour</span> &gt;= <span class="nm">11</span> &amp;&amp; <span class="prop">hour</span> &lt; <span class="nm">16</span>) { <span class="prop">lightColor</span> = <span class="st">"#ffffff"</span>; <span class="prop">timeMsg</span> = <span class="st">"白日の"</span>; }
-<span class="kw">else if</span> (<span class="prop">hour</span> &gt;= <span class="nm">16</span> &amp;&amp; <span class="prop">hour</span> &lt; <span class="nm">19</span>) { <span class="prop">lightColor</span> = <span class="st">"#ffd7a0"</span>; <span class="prop">timeMsg</span> = <span class="st">"黄昏時の"</span>; }
-<span class="kw">else</span>                              { <span class="prop">lightColor</span> = <span class="st">"#4a548c"</span>; <span class="prop">timeMsg</span> = <span class="st">"月明かりの"</span>; }</pre></div>
-    <div class="description">時間帯ごとに光の色と言葉を設定（朝=青白 / 昼=白 / 夕=橙 / 夜=藍色）。</div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="prop">currentWeather</span> === <span class="st">'rain'</span>) <span class="prop">weatherMsg</span> = <span class="st">"雨降る神域にて"</span>;
-<span class="kw">else if</span> (<span class="prop">currentWeather</span> === <span class="st">'snow'</span>) <span class="prop">weatherMsg</span> = <span class="st">"雪化粧の神域にて"</span>;
-<span class="kw">else</span> <span class="prop">weatherMsg</span> = <span class="st">"清冽なる神域にて"</span>;</pre></div>
-    <div class="description">天気ごとに参拝証の文言を設定。</div>
-
-    <div class="code-block"><pre><span class="prop">document</span>.<span class="fn">addEventListener</span>(<span class="st">"DOMContentLoaded"</span>, () => {
-  <span class="cm">// Apply i18n strings</span>
-  <span class="prop">document</span>.<span class="fn">getElementById</span>(<span class="st">'page-title'</span>).<span class="prop">textContent</span>   = <span class="prop">t</span>.<span class="prop">title</span>;
-  <span class="prop">document</span>.<span class="fn">getElementById</span>(<span class="st">'overlay-head'</span>).<span class="prop">textContent</span>  = <span class="prop">t</span>.<span class="prop">overlayHead</span>;
-  <span class="prop">document</span>.<span class="fn">getElementById</span>(<span class="st">'overlay-body'</span>).<span class="prop">innerHTML</span>   = <span class="prop">t</span>.<span class="prop">overlayBody</span>;
-  <span class="prop">document</span>.<span class="fn">getElementById</span>(<span class="st">'capture-btn'</span>).<span class="prop">textContent</span>   = <span class="prop">t</span>.<span class="prop">captureBtn</span>;
-  <span class="cm">// ... その他UI要素も同様に設定</span>
-  <span class="kw">const</span> <span class="prop">settings</span> = <span class="fn">getTimeAndWeatherSettings</span>();
-  <span class="kw">if</span> (<span class="prop">lightEl</span>) <span class="prop">lightEl</span>.<span class="fn">setAttribute</span>(<span class="st">'color'</span>, <span class="prop">settings</span>.<span class="prop">lightColor</span>);
-  <span class="fn">fetchWeatherBackground</span>();
-});</pre></div>
-    <div class="description">DOM読み込み完了後、最初に<code>t</code>（i18n辞書）から各UI要素へ文字列を流し込む。ページタイトル・オーバーレイ見出し・説明文・撮影ボタン・保存案内・閉じるボタンをまとめて設定。その後、時間帯に合わせた光の色を即座に設定し、天気取得をバックグラウンドで開始。</div>
-
-    <div class="code-block"><pre><span class="prop">overlay</span>.<span class="fn">addEventListener</span>(<span class="st">'click'</span>, <span class="kw">function</span>() {
-  <span class="prop">overlay</span>.<span class="prop">style</span>.<span class="prop">opacity</span> = <span class="st">'0'</span>;
-  <span class="fn">setTimeout</span>(() => { <span class="prop">overlay</span>.<span class="prop">style</span>.<span class="prop">display</span> = <span class="st">'none'</span>; }, <span class="nm">1500</span>);</pre></div>
-    <div class="description">スタート画面をクリックすると透明度0でフェードアウトし、1.5秒後に完全に非表示。</div>
-
-    <div class="code-block"><pre><span class="prop">audioEl</span>.<span class="prop">volume</span> = <span class="nm">0</span>; <span class="prop">audioEl</span>.<span class="fn">play</span>().<span class="fn">then</span>(() => { <span class="prop">audioEl</span>.<span class="fn">pause</span>(); <span class="prop">audioEl</span>.<span class="prop">currentTime</span> = <span class="nm">0</span>; });</pre></div>
-    <div class="description">音声を無音で一瞬再生してすぐ止める（ブラウザの自動再生ポリシー対策・音声ロック解除）。</div>
-
-    <div class="code-block"><pre><span class="kw">let</span> <span class="prop">lostTimeout</span>; <span class="kw">let</span> <span class="prop">isTracking</span> = <span class="kw">false</span>;</pre></div>
-    <div class="description">タイムアウトID・トラッキング中かどうかのフラグを定義。</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== ar-control ====== -->
-  <section id="sec-arcontrol">
-    <div class="section-header">
-      <div class="section-badge">八</div>
-      <h2>ar-control コンポーネント</h2>
-    </div>
-
-    <div class="code-block"><pre><span class="fn">AFRAME</span>.<span class="fn">registerComponent</span>(<span class="st">'ar-control'</span>, {
-  <span class="kw">init</span>: <span class="kw">function</span> () {
-    <span class="prop">targetEl</span>.<span class="fn">addEventListener</span>(<span class="st">'targetFound'</span>, <span class="prop">event</span> => {</pre></div>
-    <div class="description">ARターゲット画像をカメラが認識したとき発火するイベントを登録。</div>
-
-    <div class="code-block"><pre><span class="prop">isTracking</span> = <span class="kw">true</span>;
-<span class="kw">if</span> (<span class="prop">lostTimeout</span>) { <span class="fn">clearTimeout</span>(<span class="prop">lostTimeout</span>); <span class="prop">lostTimeout</span> = <span class="kw">null</span>; }</pre></div>
-    <div class="description">トラッキング中フラグをオン。ロストタイムアウトが残っていればキャンセル。</div>
-
-    <div class="code-block"><pre><span class="prop">manifestationEl</span>.<span class="fn">setAttribute</span>(<span class="st">'visible'</span>, <span class="kw">true</span>);
-<span class="prop">captureBtn</span>.<span class="prop">style</span>.<span class="prop">display</span> = <span class="st">'block'</span>;</pre></div>
-    <div class="description">AR演出を表示・撮影ボタンを表示。</div>
-
-    <div class="code-block"><pre><span class="kw">this</span>.<span class="fn">playInkSequence</span>();
-<span class="prop">audioEl</span>.<span class="prop">volume</span> = <span class="nm">0.3</span>; <span class="prop">audioEl</span>.<span class="fn">play</span>();</pre></div>
-    <div class="description">墨出現アニメーションを再生・BGMを30%の音量で再生。</div>
-
-    <div class="code-block"><pre><span class="prop">targetEl</span>.<span class="fn">addEventListener</span>(<span class="st">'targetLost'</span>, <span class="prop">event</span> => {
-  <span class="prop">isTracking</span> = <span class="kw">false</span>;
-  <span class="prop">captureBtn</span>.<span class="prop">style</span>.<span class="prop">display</span> = <span class="st">'none'</span>;</pre></div>
-    <div class="description">ターゲットを見失ったとき：トラッキングフラグをオフ・撮影ボタンを非表示。</div>
-
-    <div class="code-block"><pre><span class="prop">lostTimeout</span> = <span class="fn">setTimeout</span>(() => {
-  <span class="prop">manifestationEl</span>.<span class="fn">setAttribute</span>(<span class="st">'visible'</span>, <span class="kw">false</span>);
-  <span class="kw">this</span>.<span class="fn">resetInkManifestation</span>();
-  <span class="prop">audioEl</span>.<span class="fn">pause</span>();
-}, <span class="nm">3000</span>);</pre></div>
-    <div class="description">3秒後にAR演出を非表示・墨リセット・BGMを停止。すぐ消えず猶予を持たせることで、一瞬ターゲットが隠れても演出が途切れにくくなる。</div>
-
-    <div class="code-block"><pre><span class="prop">playInkSequence</span>: <span class="kw">function</span> () {
-  <span class="kw">this</span>.<span class="fn">resetInkManifestation</span>();
-  <span class="prop">inkManifestationEl</span>.<span class="fn">setAttribute</span>(<span class="st">'animation__bleed'</span>,
-    <span class="st">'property: material.opacity; from: 0; to: 0.8; dur: 2000; easing: easeOutCubic;'</span>);</pre></div>
-    <div class="description">墨出現：まずリセットしてから、2秒かけて透明→0.8まで滲み出るアニメーションを設定。easeOutCubicは最初が速く最後が遅い（墨が広がる感じ）。</div>
-
-    <div class="code-block"><pre><span class="kw">this</span>.<span class="prop">fadeOutTimeout</span> = <span class="fn">setTimeout</span>(() => {
-  <span class="kw">if</span> (<span class="prop">isTracking</span>) { <span class="prop">inkManifestationEl</span>.<span class="fn">setAttribute</span>(<span class="st">'animation__fadeout'</span>,
-    <span class="st">'property: material.opacity; from: 0.8; to: 0; dur: 4000; easing: easeInCubic;'</span>); }
-}, <span class="nm">5000</span>);</pre></div>
-    <div class="description">5秒後、まだトラッキング中であれば4秒かけてじわじわ消えるアニメーションを追加。つまり「2秒で出現→5秒表示→4秒で消える」という流れ。</div>
-
-    <div class="code-block"><pre><span class="prop">resetInkManifestation</span>: <span class="kw">function</span> () {
-  <span class="kw">if</span> (<span class="kw">this</span>.<span class="prop">fadeOutTimeout</span>) { <span class="fn">clearTimeout</span>(<span class="kw">this</span>.<span class="prop">fadeOutTimeout</span>); <span class="kw">this</span>.<span class="prop">fadeOutTimeout</span> = <span class="kw">null</span>; }
-  <span class="prop">inkManifestationEl</span>.<span class="fn">removeAttribute</span>(<span class="st">'animation__bleed'</span>);
-  <span class="prop">inkManifestationEl</span>.<span class="fn">removeAttribute</span>(<span class="st">'animation__fadeout'</span>);
-  <span class="prop">inkManifestationEl</span>.<span class="fn">setAttribute</span>(<span class="st">'material.opacity'</span>, <span class="nm">0</span>);
-}</pre></div>
-    <div class="description">タイマーをキャンセル・両アニメーションを削除・透明度を即座に0にして完全リセット。</div>
-
-    <div class="code-block"><pre><span class="prop">document</span>.<span class="fn">querySelector</span>(<span class="st">'a-scene'</span>).<span class="fn">setAttribute</span>(<span class="st">'ar-control'</span>, <span class="st">''</span>);</pre></div>
-    <div class="description">作成した<code>ar-control</code>コンポーネントをA-Frameシーン要素に取り付けて動作させる。</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== 撮影処理 ====== -->
-  <section id="sec-capture">
-    <div class="section-header">
-      <div class="section-badge">九</div>
-      <h2>撮影処理</h2>
-    </div>
-
-    <div class="code-block"><pre><span class="prop">captureBtn</span>.<span class="fn">addEventListener</span>(<span class="st">'click'</span>, () => {
-  <span class="fn">sendLog</span>(<span class="st">'capture'</span>);
-  <span class="kw">const</span> <span class="prop">sceneEl</span>     = <span class="prop">document</span>.<span class="fn">querySelector</span>(<span class="st">'a-scene'</span>);
-  <span class="kw">const</span> <span class="prop">aframeCanvas</span> = <span class="prop">sceneEl</span>.<span class="prop">canvas</span>;
-  <span class="kw">const</span> <span class="prop">video</span>        = <span class="prop">document</span>.<span class="fn">querySelector</span>(<span class="st">'video'</span>);
-});</pre></div>
-    <div class="description">撮影ボタンがタップされたとき、まず<code>sendLog('capture')</code>でログを送信してからA-Frameのcanvasとカメラ映像のvideo要素を取得。</div>
-
-    <div class="code-block"><pre><span class="prop">sceneEl</span>.<span class="prop">renderer</span>.<span class="fn">render</span>(<span class="prop">sceneEl</span>.<span class="prop">object3D</span>, <span class="prop">sceneEl</span>.<span class="prop">camera</span>);</pre></div>
-    <div class="description">現在のARフレームを強制レンダリング。「キャプチャ直前の最新AR画像」を確実に取得するため。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">dpr</span> = <span class="prop">window</span>.<span class="prop">devicePixelRatio</span> || <span class="nm">1</span>;
-<span class="prop">canvas</span>.<span class="prop">width</span>  = <span class="prop">w</span> * <span class="prop">dpr</span>;
-<span class="prop">canvas</span>.<span class="prop">height</span> = <span class="prop">h</span> * <span class="prop">dpr</span>;</pre></div>
-    <div class="description">高解像度ディスプレイ（Retina等）に対応した実ピクセル数でキャンバスを作成。</div>
-
-    <div class="code-block"><pre><span class="prop">ctx</span>.<span class="fn">scale</span>(<span class="prop">dpr</span>, <span class="prop">dpr</span>);</pre></div>
-    <div class="description">デバイスピクセル比に合わせてコンテキストをスケール（描画がぼけないよう）。</div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="prop">videoRatio</span> &gt; <span class="prop">screenRatio</span>) {
-  <span class="prop">drawHeight</span> = <span class="prop">h</span>; <span class="prop">drawWidth</span> = <span class="prop">video</span>.<span class="prop">videoWidth</span> * (<span class="prop">h</span> / <span class="prop">video</span>.<span class="prop">videoHeight</span>); <span class="prop">startX</span> = (<span class="prop">w</span> - <span class="prop">drawWidth</span>) / <span class="nm">2</span>;
-} <span class="kw">else</span> {
-  <span class="prop">drawWidth</span> = <span class="prop">w</span>; <span class="prop">drawHeight</span> = <span class="prop">video</span>.<span class="prop">videoHeight</span> * (<span class="prop">w</span> / <span class="prop">video</span>.<span class="prop">videoWidth</span>); <span class="prop">startY</span> = (<span class="prop">h</span> - <span class="prop">drawHeight</span>) / <span class="nm">2</span>;
-}</pre></div>
-    <div class="description">映像が横長なら左右中央（letterbox）、縦長なら上下中央（pillarbox）に配置して、アスペクト比を保ちながら画面いっぱいに描画。</div>
-
-    <div class="code-block"><pre><span class="prop">ctx</span>.<span class="fn">drawImage</span>(<span class="prop">video</span>, <span class="prop">startX</span>, <span class="prop">startY</span>, <span class="prop">drawWidth</span>, <span class="prop">drawHeight</span>);</pre></div>
-    <div class="description">計算した位置・サイズでカメラ映像をキャンバスに描画（背景レイヤー）。</div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="prop">aframeCanvas</span>) { <span class="prop">ctx</span>.<span class="fn">drawImage</span>(<span class="prop">aframeCanvas</span>, <span class="nm">0</span>, <span class="nm">0</span>, <span class="prop">w</span>, <span class="prop">h</span>); }</pre></div>
-    <div class="description">AR（3D）のレンダリング結果をカメラ映像の上に重ねて描画。これで「現実＋AR」の合成画像になる。</div>
-
-    <div class="code-block"><pre><span class="prop">ctx</span>.<span class="prop">fillStyle</span> = <span class="st">'rgba(0,0,0,0.5)'</span>;
-<span class="prop">ctx</span>.<span class="fn">fillRect</span>(<span class="nm">0</span>, <span class="nm">0</span>, <span class="prop">w</span>, <span class="nm">100</span>);
-<span class="prop">ctx</span>.<span class="fn">fillRect</span>(<span class="nm">0</span>, <span class="prop">h</span> - <span class="nm">100</span>, <span class="prop">w</span>, <span class="nm">100</span>);</pre></div>
-    <div class="description">上部・下部に幅いっぱい・高さ100pxの半透明黒帯を描く（テキストを読みやすくするため）。</div>
-
-    <div class="code-block"><pre><span class="prop">ctx</span>.<span class="prop">font</span> = <span class="st">'bold 28px "Yu Mincho", serif'</span>;
-<span class="prop">ctx</span>.<span class="fn">fillText</span>(<span class="prop">t</span>.<span class="prop">stampTitle</span>, <span class="prop">w</span> / <span class="nm">2</span>, <span class="nm">45</span>);</pre></div>
-    <div class="description">上帯の中央（y=45）にスタンプタイトルを太字28pxで描く。文字列は<code>t.stampTitle</code>から取得（日本語：「参拝之証」、英語：「Proof of Visit」）。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">dateStr</span> = <span class="prop">t</span>.<span class="fn">dateFormat</span>(<span class="prop">now</span>);</pre></div>
-    <div class="description">日時文字列を<code>t.dateFormat()</code>で生成。日本語では「2026年3月12日 14:05」、英語では「March 12, 2026 14:05」の形式で返す。フォーマットロジックごとi18nオブジェクトに収めることで出力を切り替える。</div>
-
-    <div class="code-block"><pre><span class="prop">ctx</span>.<span class="prop">font</span> = <span class="st">'italic 16px "Yu Mincho", serif'</span>;
-<span class="prop">ctx</span>.<span class="fn">fillText</span>(<span class="prop">settings</span>.<span class="prop">message</span>, <span class="prop">w</span> / <span class="nm">2</span>, <span class="prop">h</span> - <span class="nm">45</span>);</pre></div>
-    <div class="description">時間帯×天気のメッセージを下帯中央（画面下から45px）にイタリック体で描く。</div>
-
-    <div class="code-block"><pre><span class="prop">resultImage</span>.<span class="prop">src</span> = <span class="prop">canvas</span>.<span class="fn">toDataURL</span>(<span class="st">'image/jpeg'</span>, <span class="nm">0.9</span>);
-<span class="prop">resultModal</span>.<span class="prop">style</span>.<span class="prop">display</span> = <span class="st">'flex'</span>;</pre></div>
-    <div class="description">合成したキャンバスをJPEG形式（品質90%）のデータURLに変換し、モーダルの<code>&lt;img&gt;</code>タグのsrcに設定して表示。</div>
-
-    <div class="code-block"><pre><span class="prop">closeModal</span>.<span class="fn">addEventListener</span>(<span class="st">'click'</span>, () => {
-  <span class="prop">resultModal</span>.<span class="prop">style</span>.<span class="prop">display</span> = <span class="st">'none'</span>;
-});</pre></div>
-    <div class="description">「戻る」ボタンをクリックしたらモーダルを非表示にする。</div>
-
-    <div class="code-block"><pre><span class="prop">document</span>.<span class="fn">addEventListener</span>(<span class="st">"visibilitychange"</span>, () => {
-  <span class="kw">if</span> (<span class="prop">document</span>.<span class="prop">hidden</span>) { <span class="prop">audioEl</span>.<span class="fn">pause</span>(); }
-  <span class="kw">else</span> { <span class="kw">if</span> (<span class="prop">isTracking</span>) <span class="prop">audioEl</span>.<span class="fn">play</span>().<span class="fn">catch</span>(<span class="prop">e</span> => <span class="prop">console</span>.<span class="fn">warn</span>(<span class="prop">e</span>)); }
-});</pre></div>
-    <div class="description">アプリがバックグラウンドに移ったらBGMを停止。前面に戻ったとき、トラッキング中であればBGMを再開。失敗してもコンソールに記録するだけで止まらない。</div>
-
-    <div class="flow">画像認識 → AR表示 ＋ 墨アニメーション ＋ BGM再生
-    ↓
-撮影ボタンタップ → カメラ映像＋ARを合成 → 日付・メッセージを書き込み → モーダルで表示
-    ↓
-画像を見失う → 3秒待って演出消去 ＋ BGM停止</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== 天気API ====== -->
-  <section id="sec-weather">
-    <div class="section-header">
-      <div class="section-badge">十</div>
-      <h2>天気API（Open-Meteo）</h2>
-    </div>
-
-    <div class="code-block"><pre><span class="fn">fetch</span>(<span class="st">'https://api.open-meteo.com/v1/forecast?latitude=35.0116&amp;longitude=135.7681&amp;current_weather=true'</span>)</pre></div>
-    <div class="description">Open-MeteoのAPIに京都（緯度35.01・経度135.76）の現在天気を非同期リクエスト。APIキー不要・無料で使える。</div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>URLパラメータ</th><th>意味</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>latitude=35.0116</code></td><td>緯度（京都市）</td></tr>
-          <tr><td><code>longitude=135.7681</code></td><td>経度（京都市）</td></tr>
-          <tr><td><code>current_weather=true</code></td><td>現在の天気データを要求</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">code</span> = <span class="prop">data</span>.<span class="prop">current_weather</span>.<span class="prop">weathercode</span>;
-<span class="kw">if</span> ((<span class="prop">code</span> &gt;= <span class="nm">51</span> &amp;&amp; <span class="prop">code</span> &lt;= <span class="nm">67</span>) || (<span class="prop">code</span> &gt;= <span class="nm">80</span> &amp;&amp; <span class="prop">code</span> &lt;= <span class="nm">82</span>)) <span class="prop">currentWeather</span> = <span class="st">'rain'</span>;
-<span class="kw">else if</span> ((<span class="prop">code</span> &gt;= <span class="nm">71</span> &amp;&amp; <span class="prop">code</span> &lt;= <span class="nm">77</span>) || (<span class="prop">code</span> &gt;= <span class="nm">85</span> &amp;&amp; <span class="prop">code</span> &lt;= <span class="nm">86</span>)) <span class="prop">currentWeather</span> = <span class="st">'snow'</span>;
-<span class="kw">else</span> <span class="prop">currentWeather</span> = <span class="st">'clear'</span>;</pre></div>
-    <div class="description">天気コードで雨・雪・晴れに分類する。</div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>コード範囲</th><th>天気の種類</th><th>アプリの判定</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>0〜3</td><td>快晴〜曇り</td><td>☀️ clear</td></tr>
-          <tr><td>51〜67</td><td>霧雨・雨（弱〜強）</td><td>🌧️ rain</td></tr>
-          <tr><td>71〜77</td><td>雪（弱〜強）</td><td>❄️ snow</td></tr>
-          <tr><td>80〜82</td><td>にわか雨</td><td>🌧️ rain</td></tr>
-          <tr><td>85〜86</td><td>にわか雪</td><td>❄️ snow</td></tr>
-          <tr><td>その他</td><td>霧・雷雨など</td><td>☀️ clear（デフォルト）</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="code-block"><pre><span class="fn">fetchWeatherBackground</span>();  <span class="cm">// ユーザーを待たせずに裏で取得スタート</span></pre></div>
-    <div class="description">ポイントは「ユーザーを待たせない設計」。光の色は即座に設定し、天気はバックグラウンドで非同期取得する。取得できた瞬間にエフェクトが自然に切り替わる。</div>
-
-    <div class="code-block"><pre>.<span class="fn">catch</span>(<span class="prop">e</span> => { <span class="prop">console</span>.<span class="fn">warn</span>(<span class="st">"天気API取得スキップ（晴れとして進行）:"</span>, <span class="prop">e</span>); });</pre></div>
-    <div class="description">圏外・APIダウン・CORSエラーなどが起きてもアプリが止まらないよう、エラーを握りつぶして「晴れ」のまま進む。神社境内など電波の弱い場所でも動作するための重要な設計。</div>
-
-    <div class="flow">アプリ起動
-  │
-  ├─ 光の色（時間帯）→ 即座に設定 ✅
-  │
-  └─ 天気API取得 → バックグラウンドで非同期実行
-        │
-        ├─ 成功 → エフェクトを切り替え（ARを使っていても自然に変わる）
-        └─ 失敗 → 晴れのまま進む（電波なしでも動作）</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== i18n ====== -->
-  <section id="sec-i18n">
-    <div class="section-header">
-      <div class="section-badge">十一</div>
-      <h2>多言語対応（i18n）</h2>
-    </div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">LANG</span> = <span class="prop">navigator</span>.<span class="prop">language</span> &amp;&amp; <span class="prop">navigator</span>.<span class="prop">language</span>.<span class="fn">startsWith</span>(<span class="st">'ja'</span>) ? <span class="st">'ja'</span> : <span class="st">'en'</span>;</pre></div>
-    <div class="description">ブラウザ・OSの言語設定を<code>navigator.language</code>で取得し、<code>'ja'</code>で始まる場合は日本語、それ以外はすべて英語と判定。ボタン操作なく自動で切り替わる。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">i18n</span> = {
-  <span class="prop">ja</span>: { <span class="prop">title</span>: <span class="st">'飛梅と祈りの鶴 奉拝AR'</span>, <span class="prop">overlayHead</span>: <span class="st">'参拝を開始します'</span>, ... },
-  <span class="prop">en</span>: { <span class="prop">title</span>: <span class="st">'Tobiume &amp; Origami Cranes AR'</span>, <span class="prop">overlayHead</span>: <span class="st">'Begin Your Visit'</span>, ... }
-};</pre></div>
-    <div class="description">日英それぞれの文字列をオブジェクトとして一箇所に集約。ページタイトル・オーバーレイ・ボタンラベル・保存案内・スタンプタイトル・日付フォーマット・時間帯メッセージ・天気メッセージに加え、SNSシェア機能追加にともない以下のキーも追加された。</div>
-
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>キー</th><th>ja</th><th>en</th></tr></thead>
-        <tbody>
-          <tr><td><code>saveHint</code></td><td>画像を長押しして保存、またはシェアしてください</td><td>Long-press to save, or tap to share.</td></tr>
-          <tr><td><code>shareBtn</code></td><td>SNSでシェアする</td><td>Share</td></tr>
-          <tr><td><code>shareText</code></td><td>SNS投稿本文（#北野天満宮 #奉拝AR）</td><td>SNS投稿本文（#KitanoTenmangu #AR）</td></tr>
-          <tr><td><code>shareError</code></td><td>Web Share API非対応時のフォールバックメッセージ</td><td>同上（英語）</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="code-block"><pre><span class="prop">dateFormat</span>: (<span class="prop">d</span>) => <span class="st">`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ...`</span>  <span class="cm">// ja</span>
-<span class="prop">dateFormat</span>: (<span class="prop">d</span>) => <span class="st">`${d.toLocaleString('en-US',{month:'long',...})} ...`</span>       <span class="cm">// en</span></pre></div>
-    <div class="description">日付フォーマットは関数として定義し、呼び出し側は<code>t.dateFormat(now)</code>と書くだけでよい。日本語では「2026年3月12日」、英語では「March 12, 2026」の形式が返る。</div>
-
-    <div class="code-block"><pre><span class="prop">msgFormat</span>: (<span class="prop">time</span>, <span class="prop">weather</span>) => <span class="st">`${time}祈り。${weather}`</span>        <span class="cm">// ja</span>
-<span class="prop">msgFormat</span>: (<span class="prop">time</span>, <span class="prop">weather</span>) => <span class="st">`${time} ${weather}`</span>              <span class="cm">// en</span></pre></div>
-    <div class="description">時間帯と天気を組み合わせたスタンプ文章の構成ルールも言語ごとに定義。日本語は「朝霧の祈り。清冽なる神域にて」、英語は「Morning mist — in the sacred stillness」のように語順・句読点が異なるため、フォーマット関数として持たせている。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">t</span> = <span class="prop">i18n</span>[<span class="prop">LANG</span>];</pre></div>
-    <div class="description">検出した言語コードで辞書を引き、以降は<code>t.captureBtn</code>のように短く参照できる。</div>
-
-    <div class="flow">navigator.language を取得
-  │
-  ├─ 'ja' で始まる → t = i18n.ja（日本語）
-  └─ それ以外      → t = i18n.en（英語）
-        │
-        └─ DOMContentLoaded で各UI要素に t.xxx を流し込む
-              ページタイトル / オーバーレイ / ボタン / モーダル
-              スタンプタイトル / 日付フォーマット / 天気メッセージ</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== アクセスログ ====== -->
-  <section id="sec-log">
-    <div class="section-header">
-      <div class="section-badge">十二</div>
-      <h2>アクセスログ（Googleフォーム）</h2>
-    </div>
-
-    <div class="description">
-      GitHubPages はサーバーサイド処理ができないため、CSVへの直接書き込みは不可。Googleフォームへの<code>fetch POST</code>を使うことで、認証画面を一切出さずにスプレッドシートへ記録できる。
-    </div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">FORM_ACTION</span> = <span class="st">'https://docs.google.com/forms/d/e/xxxx/formResponse'</span>;
-<span class="kw">const</span> <span class="prop">FORM_FIELDS</span> = {
-  <span class="prop">timestamp</span>:  <span class="st">'entry.209041019'</span>,
-  <span class="prop">lang</span>:       <span class="st">'entry.1632396277'</span>,
-  <span class="prop">weather</span>:    <span class="st">'entry.134011435'</span>,
-  <span class="prop">timeOfDay</span>:  <span class="st">'entry.58239131'</span>,
-  <span class="prop">event</span>:      <span class="st">'entry.957978847'</span>,
-};</pre></div>
-    <div class="description"><code>FORM_ACTION</code> はGoogleフォームの公開URL末尾を <code>viewform</code> → <code>formResponse</code> に変えたもの。<code>FORM_FIELDS</code> の各 <code>entry.XXXXXXXXX</code> はフォームの各質問に対応するフィールドID。フォームのプレビューページでDevToolsの Console に <code>document.querySelectorAll('[name^="entry."]').forEach(el => console.log(el.name))</code> を実行すると取得できる。</div>
-
-    <div class="code-block"><pre><span class="kw">function</span> <span class="fn">sendLog</span>(<span class="prop">eventName</span>) {
-  <span class="kw">const</span> <span class="prop">body</span> = <span class="kw">new</span> <span class="fn">FormData</span>();
-  <span class="prop">body</span>.<span class="fn">append</span>(<span class="prop">FORM_FIELDS</span>.<span class="prop">timestamp</span>, <span class="kw">new</span> <span class="fn">Date</span>().<span class="fn">toISOString</span>());
-  <span class="prop">body</span>.<span class="fn">append</span>(<span class="prop">FORM_FIELDS</span>.<span class="prop">lang</span>,      <span class="prop">LANG</span>);
-  <span class="prop">body</span>.<span class="fn">append</span>(<span class="prop">FORM_FIELDS</span>.<span class="prop">weather</span>,   <span class="prop">currentWeather</span>);
-  <span class="prop">body</span>.<span class="fn">append</span>(<span class="prop">FORM_FIELDS</span>.<span class="prop">timeOfDay</span>, <span class="prop">timeOfDay</span>);
-  <span class="prop">body</span>.<span class="fn">append</span>(<span class="prop">FORM_FIELDS</span>.<span class="prop">event</span>,     <span class="prop">eventName</span>);
-  <span class="fn">fetch</span>(<span class="prop">FORM_ACTION</span>, { <span class="prop">method</span>: <span class="st">'POST'</span>, <span class="prop">body</span>, <span class="prop">mode</span>: <span class="st">'no-cors'</span> }).<span class="fn">catch</span>(() => {});
-}</pre></div>
-    <div class="description"><code>FormData</code> に各フィールドを追加して POST 送信。<code>mode: 'no-cors'</code> を指定するため fetch はレスポンスを読めないが、Googleフォームへの送信自体は正常に届く。<code>.catch(() => {})</code> でネットワークエラーを握りつぶしてアプリを止めない。</div>
-
-    <div class="code-block"><pre><span class="kw">let</span> <span class="prop">arLogSent</span> = <span class="kw">false</span>;
-
-<span class="cm">// targetFound 内</span>
-<span class="kw">if</span> (!<span class="prop">arLogSent</span>) {
-  <span class="fn">sendLog</span>(<span class="st">'ar_found'</span>);
-  <span class="prop">arLogSent</span> = <span class="kw">true</span>;
-}</pre></div>
-    <div class="description"><code>arLogSent</code> フラグで、ターゲットを見失って再認識するたびに記録されるのを防ぐ。1セッション（ページリロードまで）で <code>ar_found</code> は1回だけ送信される。</div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>event 値</th><th>送信タイミング</th><th>重複制御</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><code>access</code></td><td>DOMContentLoaded（ページ到達時）</td><td>リロードごとに1回</td></tr>
-          <tr><td><code>ar_found</code></td><td>ARターゲット認識時</td><td><code>arLogSent</code>フラグで1セッション1回</td></tr>
-          <tr><td><code>capture</code></td><td>撮影ボタンタップ時</td><td>制限なし（複数回撮影可）</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="flow">ページ到達 → sendLog('access')
-  │
-  ARターゲット認識 → arLogSent が false なら sendLog('ar_found') → arLogSent = true
-  │
-  撮影ボタンタップ → sendLog('capture')
-  │
-  すべて Googleフォーム経由でスプレッドシートに自動記録
-  （timestamp / lang / weather / timeOfDay / event）</div>
-
-    <div class="note">
-      <strong>📊 記録先スプレッドシート：</strong><br>
-      <a href="https://docs.google.com/spreadsheets/d/1KhsUgZyug7fMpzA4f5sEfRRVnhIrPPAHxmb-LKHuyWg/edit?gid=434723205#gid=434723205" target="_blank" style="color: var(--rain);">
-        https://docs.google.com/spreadsheets/d/1KhsUgZyug7fMpzA4f5sEfRRVnhIrPPAHxmb-LKHuyWg/
-      </a>
-    </div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== Service Worker ====== -->
-  <section id="sec-sw">
-    <div class="section-header">
-      <div class="section-badge">十三</div>
-      <h2>Service Worker（PWA対応）</h2>
-    </div>
-
-    <div class="description">
-      Service Workerはブラウザとネットワークの間に入るプロキシ。一度訪問したファイルをキャッシュしておくことで、<strong>次回以降はオフラインでもARが起動できる</strong>。神社境内など電波の弱い場所での利用を想定した設計。
-    </div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="st">'serviceWorker'</span> <span class="kw">in</span> <span class="prop">navigator</span>) {
-  <span class="prop">window</span>.<span class="fn">addEventListener</span>(<span class="st">'load'</span>, () => {
-    <span class="prop">navigator</span>.<span class="prop">serviceWorker</span>.<span class="fn">register</span>(<span class="st">'./sw.js'</span>);
-  });
-}</pre></div>
-    <div class="description">Service Worker対応ブラウザかどうかを確認してから登録。<code>load</code>イベント後に登録することでページの初期表示を妨げない。</div>
-
-    <div class="code-block"><pre><span class="kw">const</span> <span class="prop">CACHE_NAME</span> = <span class="st">'goshuin-ar-v1'</span>;
-<span class="kw">const</span> <span class="prop">urlsToCache</span> = [
-  <span class="st">'./'</span>, <span class="st">'./index.html'</span>, <span class="st">'./targets.mind'</span>,
-  <span class="st">'./ume_petal.png'</span>, <span class="st">'./kamon.png'</span>, <span class="st">'./ink_aura.png'</span>,
-  <span class="st">'./oritsuru_merrygoround.glb'</span>, <span class="st">'./tenmangu_ambient.mp3'</span>
-];</pre></div>
-    <div class="description">キャッシュ名にバージョン番号（<code>v1</code>）を付けることで、ファイルを更新した際に<code>v2</code>に上げるだけで古いキャッシュを無効化できる。ARに必要なすべてのローカルファイルをリストアップしている。</div>
-
-    <div class="code-block"><pre><span class="prop">self</span>.<span class="fn">addEventListener</span>(<span class="st">'fetch'</span>, <span class="prop">event</span> => {
-  <span class="kw">if</span> (<span class="prop">event</span>.<span class="prop">request</span>.<span class="prop">url</span>.<span class="fn">includes</span>(<span class="st">'api.open-meteo.com'</span>) ||
-      <span class="prop">event</span>.<span class="prop">request</span>.<span class="prop">url</span>.<span class="fn">includes</span>(<span class="st">'docs.google.com'</span>)) {
-    <span class="kw">return</span>; <span class="cm">// キャッシュさせず常にネットワーク通信</span>
-  }
-  <span class="cm">// キャッシュ優先で返す</span>
-});</pre></div>
-    <div class="description">天気API（Open-Meteo）とログ送信（Google Forms）はキャッシュから除外し、常にネットワークへ通す。それ以外のローカルファイルはキャッシュを優先して返すため、オフラインでもARが動作する。</div>
-
-    <div class="flow">初回アクセス時
-  └─ install イベント → urlsToCache を全件キャッシュ保存
-
-2回目以降（オフライン可）
-  └─ fetch イベント
-       ├─ api.open-meteo.com / docs.google.com → ネットワーク直通
-       └─ その他（index.html / 画像 / 音声 etc.） → キャッシュから即返却</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== SNSシェア ====== -->
-  <section id="sec-share">
-    <div class="section-header">
-      <div class="section-badge">十四</div>
-      <h2>SNSシェア機能</h2>
-    </div>
-
-    <div class="description">
-      Web Share API を使い、撮影した画像をネイティブのシェアシートからSNSへ直接投稿できる。OSのシェアUIをそのまま使うため、LINEやInstagramなど任意のアプリに渡せる。
-    </div>
-
-    <div class="code-block"><pre><span class="tg">&lt;button</span> <span class="at">id=</span><span class="vl">"share-btn"</span><span class="tg">&gt;</span>SNSでシェアする<span class="tg">&lt;/button&gt;</span></pre></div>
-    <div class="description">result-modal 内の画像の下に配置。テキストは<code>t.shareBtn</code>でi18n対応（ja:「SNSでシェアする」/ en:「Share」）。</div>
-
-    <div class="code-block"><pre><span class="prop">canvas</span>.<span class="fn">toBlob</span>((<span class="prop">blob</span>) => {
-  <span class="prop">window</span>.<span class="prop">currentShareFile</span> = <span class="kw">new</span> <span class="fn">File</span>([<span class="prop">blob</span>], <span class="st">"goshuin_ar.jpg"</span>, { <span class="prop">type</span>: <span class="st">"image/jpeg"</span> });
-}, <span class="st">"image/jpeg"</span>, <span class="nm">0.9</span>);</pre></div>
-    <div class="description">撮影時にcanvasをJPEGのBlobに変換し、<code>File</code>オブジェクトとして<code>window.currentShareFile</code>に保持。シェアボタンが押されたときに参照する。</div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="prop">navigator</span>.<span class="prop">canShare</span> &amp;&amp; <span class="prop">navigator</span>.<span class="fn">canShare</span>({ <span class="prop">files</span>: [<span class="prop">window</span>.<span class="prop">currentShareFile</span>] })) {
-  <span class="kw">await</span> <span class="prop">navigator</span>.<span class="fn">share</span>({ <span class="prop">title</span>, <span class="prop">text</span>, <span class="prop">files</span>: [<span class="prop">window</span>.<span class="prop">currentShareFile</span>] });
-} <span class="kw">else</span> {
-  <span class="kw">await</span> <span class="prop">navigator</span>.<span class="fn">share</span>({ <span class="prop">title</span>, <span class="prop">text</span>, <span class="prop">url</span>: <span class="prop">window</span>.<span class="prop">location</span>.<span class="prop">href</span> });
-}</pre></div>
-    <div class="description"><code>navigator.canShare({ files })</code>で画像ファイルの直接添付に対応しているか確認。対応していればファイルを添付してシェア、非対応ならURLとテキストのみでシェア。Web Share API自体が使えないブラウザ（一部PC等）では<code>t.shareError</code>をalertで表示する。</div>
-
-    <div class="code-block"><pre><span class="kw">if</span> (<span class="kw">typeof</span> <span class="fn">sendLog</span> === <span class="st">'function'</span>) <span class="fn">sendLog</span>(<span class="st">'share_success'</span>);</pre></div>
-    <div class="description">シェア成功時にアクセスログへ<code>share_success</code>イベントを送信。キャンセルや失敗時はログを送らない（<code>catch</code>内で握りつぶす）。</div>
-
-    <div class="flow">撮影ボタンタップ
-  └─ canvas.toBlob() → window.currentShareFile に File オブジェクトを保持
-
-シェアボタンタップ
-  ├─ navigator.canShare({ files }) が true → 画像ファイル添付でシェア
-  ├─ Web Share API のみ対応  → URL＋テキストのみでシェア
-  └─ 非対応ブラウザ          → t.shareError を alert 表示
-        成功時のみ → sendLog('share_success')</div>
-  </section>
-
-  <div class="divider">◇ ◇ ◇</div>
-
-  <!-- ====== バイブレーション ====== -->
-  <section id="sec-vibrate">
-    <div class="section-header">
-      <div class="section-badge">十五</div>
-      <h2>バイブレーション</h2>
-    </div>
-
-    <div class="description">
-      <code>navigator.vibrate()</code> APIでスマートフォンを振動させ、ARの認識・撮影・シェアの各アクションを触覚でフィードバックする。非対応端末では何も起きない（エラーにならない）。
-    </div>
-
-    <div class="code-block"><pre><span class="cm">// AR認識時：「トトトッ」と3回短く</span>
-<span class="kw">if</span> (<span class="prop">navigator</span>.<span class="prop">vibrate</span>) <span class="prop">navigator</span>.<span class="fn">vibrate</span>([<span class="nm">50</span>, <span class="nm">50</span>, <span class="nm">50</span>]);</pre></div>
-    <div class="description">配列で渡すと「振動・停止・振動…」のパターンになる。<code>[50, 50, 50]</code> は「50ms振動→50ms停止→50ms振動」。神域に足を踏み入れた感覚を演出する。</div>
-
-    <div class="code-block"><pre><span class="cm">// 撮影時：「カシャッ」と200ms</span>
-<span class="kw">if</span> (<span class="prop">navigator</span>.<span class="prop">vibrate</span>) <span class="prop">navigator</span>.<span class="fn">vibrate</span>(<span class="nm">200</span>);</pre></div>
-    <div class="description">シャッターを切った感触を表現する単発振動。数値ひとつで「X ms振動」を意味する。</div>
-
-    <div class="code-block"><pre><span class="cm">// シェアボタンタップ時：軽く50ms</span>
-<span class="kw">if</span> (<span class="prop">navigator</span>.<span class="prop">vibrate</span>) <span class="prop">navigator</span>.<span class="fn">vibrate</span>(<span class="nm">50</span>);</pre></div>
-    <div class="description">ボタン押下の軽い確認フィードバック。</div>
-
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>タイミング</th><th>パターン</th><th>意図</th></tr></thead>
-        <tbody>
-          <tr><td>AR認識時</td><td><code>[50, 50, 50]</code></td><td>神域に入った感覚（3連動）</td></tr>
-          <tr><td>撮影ボタンタップ時</td><td><code>200</code></td><td>シャッターの感触</td></tr>
-          <tr><td>シェアボタンタップ時</td><td><code>50</code></td><td>軽い確認フィードバック</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-</main>
-
-<footer>
-  飛梅と祈りの鶴 奉拝AR — コード解説ドキュメント
-</footer>
-
-</body>
+    <a-scene
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;"
+      color-space="sRGB" renderer="colorManagement: true; preserveDrawingBuffer: true;"
+      vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
+    >
+      <a-assets>
+        <img id="umeTexture" src="./ume_petal.png" crossorigin="anonymous">
+        <img id="kamonTexture" src="./kamon.png" crossorigin="anonymous">
+        <img id="inkAura" src="./ink_aura.png" crossorigin="anonymous"> 
+        <a-asset-item id="orizuruModel" src="./oritsuru_merrygoround.glb"></a-asset-item>
+        <audio id="sacredAudio" src="./tenmangu_ambient.mp3" preload="auto" loop></audio>
+      </a-assets>
+
+      <a-light id="ambient-light" type="ambient" color="#ffffff" intensity="2.0"></a-light>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <a-entity id="target0" mindar-image-target="targetIndex: 0">
+        <a-entity id="manifestation" visible="false">
+          
+          <a-image id="inkManifestation" src="#inkAura" position="0 0 0.02" scale="1.5 1.5 1" material="shader: flat; transparent: true; depthWrite: false; opacity: 0;" boiling-effect="intensity: 0.002; speed: 120;" ink-date-texture></a-image>
+
+          <a-entity position="0 0 0.05" animation="property: scale; from: 0.75 0.75 0.75; to: 0.85 0.85 0.85; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine;">
+            <a-image src="#kamonTexture" scale="1 1 1" material="transparent: true; blending: additive; opacity: 0.8;" animation="property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;"></a-image>
+          </a-entity>
+
+          <a-gltf-model src="#orizuruModel" position="0 0 0.1" scale="0.1 0.1 0.1" animation-mixer></a-gltf-model>
+          
+          <a-entity id="effect-clear" petal-system="count: 40; area: 0.8;" visible="true"></a-entity>
+          <a-entity id="effect-rain" rain-system="count: 100; area: 0.8;" visible="false"></a-entity>
+          <a-entity id="effect-snow" snow-system="count: 80; area: 0.8;" visible="false"></a-entity>
+
+        </a-entity>
+      </a-entity>
+    </a-scene>
+
+    <script>
+      // ── アクセスログ送信（Googleフォーム経由）────────────────────────────
+      const FORM_ACTION = 'https://docs.google.com/forms/d/e/1FAIpQLSfjby8c1dWsFUI4sK_FWzwtT09LqvgKFGebga5__xQmc1fioA/formResponse';
+      const FORM_FIELDS = {
+        timestamp:  'entry.209041019',
+        lang:       'entry.1632396277',
+        weather:    'entry.134011435',
+        timeOfDay:  'entry.58239131',
+        event:      'entry.957978847',
+      };
+
+      function sendLog(eventName) {
+        const hour = new Date().getHours();
+        let timeOfDay;
+        if      (hour >= 5  && hour < 11) timeOfDay = 'morning';
+        else if (hour >= 11 && hour < 16) timeOfDay = 'midday';
+        else if (hour >= 16 && hour < 19) timeOfDay = 'evening';
+        else                              timeOfDay = 'night';
+
+        const body = new FormData();
+        body.append(FORM_FIELDS.timestamp, new Date().toISOString());
+        body.append(FORM_FIELDS.lang,      LANG);
+        body.append(FORM_FIELDS.weather,   currentWeather);
+        body.append(FORM_FIELDS.timeOfDay, timeOfDay);
+        body.append(FORM_FIELDS.event,     eventName);
+
+        fetch(FORM_ACTION, { method: 'POST', body, mode: 'no-cors' }).catch(() => {});
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
+      let currentWeather = 'clear';
+
+      function fetchWeatherBackground() {
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=35.0116&longitude=135.7681&current_weather=true')
+          .then(res => res.json())
+          .then(data => {
+            const code = data.current_weather.weathercode;
+            if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) currentWeather = 'rain';
+            else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) currentWeather = 'snow';
+            else currentWeather = 'clear';
+
+            document.getElementById('effect-clear').setAttribute('visible', currentWeather === 'clear');
+            document.getElementById('effect-rain').setAttribute('visible', currentWeather === 'rain');
+            document.getElementById('effect-snow').setAttribute('visible', currentWeather === 'snow');
+          })
+          .catch(e => {
+            console.warn("天気API取得スキップ（晴れとして進行）:", e);
+          });
+      }
+
+      function getTimeAndWeatherSettings() {
+        const hour = new Date().getHours();
+        let lightColor, timeMsg, weatherMsg;
+
+        if (hour >= 5 && hour < 11) { lightColor = "#e6f0ff"; timeMsg = t.timeMsgs.morning; }
+        else if (hour >= 11 && hour < 16) { lightColor = "#ffffff"; timeMsg = t.timeMsgs.midday; }
+        else if (hour >= 16 && hour < 19) { lightColor = "#ffd7a0"; timeMsg = t.timeMsgs.evening; }
+        else { lightColor = "#4a548c"; timeMsg = t.timeMsgs.night; }
+
+        if (currentWeather === 'rain') weatherMsg = t.weatherMsgs.rain;
+        else if (currentWeather === 'snow') weatherMsg = t.weatherMsgs.snow;
+        else weatherMsg = t.weatherMsgs.clear;
+        
+        return { lightColor, message: t.msgFormat(timeMsg, weatherMsg) };
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        // Apply i18n strings
+        document.getElementById('page-title').textContent     = t.title;
+        document.getElementById('overlay-head').textContent   = t.overlayHead;
+        document.getElementById('overlay-body').innerHTML     = t.overlayBody;
+        document.getElementById('camera-note').textContent    = t.cameraNote;
+        document.getElementById('capture-btn').textContent    = t.captureBtn;
+        document.getElementById('save-hint').textContent      = t.saveHint;
+        document.getElementById('result-image').alt           = t.altText;
+        document.getElementById('share-btn').textContent      = t.shareBtn;
+        document.getElementById('close-modal').textContent    = t.closeBtn;
+        document.getElementById('scan-msg').textContent       = t.scanMsg;
+
+        const settings = getTimeAndWeatherSettings();
+        const lightEl = document.getElementById('ambient-light');
+        if (lightEl) lightEl.setAttribute('color', settings.lightColor);
+        
+        fetchWeatherBackground();
+        sendLog('access');
+      });
+
+      const overlay = document.getElementById('start-overlay');
+      const audioEl = document.querySelector('#sacredAudio');
+      const targetEl = document.querySelector('#target0');
+      const manifestationEl = document.querySelector('#manifestation');
+      const inkManifestationEl = document.querySelector('#inkManifestation');
+      
+      const captureBtn = document.getElementById('capture-btn');
+      const shareBtn = document.getElementById('share-btn'); // ★追加
+      const resultModal = document.getElementById('result-modal');
+      const resultImage = document.getElementById('result-image');
+      const closeModal = document.getElementById('close-modal');
+
+      const scanOverlay = document.getElementById('scan-overlay');
+
+      let lostTimeout; 
+      let isTracking = false;
+      let arLogSent = false;
+
+      overlay.addEventListener('click', function() {
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          // スキャンUIを表示
+          scanOverlay.style.display = 'flex';
+        }, 1500);
+        try {
+          audioEl.volume = 0; audioEl.play().then(() => { audioEl.pause(); audioEl.currentTime = 0; });
+        } catch(e) {}
+      });
+
+      // ③ BGMフェードイン・アウト用ユーティリティ
+      function fadeAudio(targetVol, duration) {
+        const steps = 30;
+        const interval = duration / steps;
+        const startVol = audioEl.volume;
+        const delta = (targetVol - startVol) / steps;
+        let step = 0;
+        const timer = setInterval(() => {
+          step++;
+          audioEl.volume = Math.max(0, Math.min(1, startVol + delta * step));
+          if (step >= steps) clearInterval(timer);
+        }, interval);
+      }
+
+      AFRAME.registerComponent('ar-control', {
+        init: function () {
+          targetEl.addEventListener('targetFound', event => {
+            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+
+            isTracking = true;
+            if (lostTimeout) { clearTimeout(lostTimeout); lostTimeout = null; }
+            manifestationEl.setAttribute('visible', true);
+            captureBtn.style.display = 'block';
+            // スキャンUI非表示
+            scanOverlay.style.display = 'none';
+            this.playInkSequence();
+            // ③ フェードインで再生（0 → 0.3 を1.5秒かけて）
+            audioEl.play();
+            fadeAudio(0.3, 1500);
+            if (!arLogSent) {
+              sendLog('ar_found');
+              arLogSent = true;
+            }
+          });
+
+          targetEl.addEventListener('targetLost', event => {
+            isTracking = false;
+            captureBtn.style.display = 'none';
+            // スキャンUI再表示
+            scanOverlay.style.display = 'flex';
+            lostTimeout = setTimeout(() => {
+              manifestationEl.setAttribute('visible', false);
+              this.resetInkManifestation();
+              // ③ フェードアウトで停止（0.3 → 0 を2秒かけて）
+              fadeAudio(0, 2000);
+              setTimeout(() => { audioEl.pause(); audioEl.volume = 0; }, 2100);
+            }, 3000);
+          });
+        },
+        playInkSequence: function () {
+          this.resetInkManifestation();
+          inkManifestationEl.setAttribute('animation__bleed', 'property: material.opacity; from: 0; to: 0.8; dur: 2000; easing: easeOutCubic;');
+          this.fadeOutTimeout = setTimeout(() => {
+            if (isTracking) { inkManifestationEl.setAttribute('animation__fadeout', 'property: material.opacity; from: 0.8; to: 0; dur: 4000; easing: easeInCubic;'); }
+          }, 5000);
+        },
+        resetInkManifestation: function () {
+          if (this.fadeOutTimeout) { clearTimeout(this.fadeOutTimeout); this.fadeOutTimeout = null; }
+          inkManifestationEl.removeAttribute('animation__bleed'); inkManifestationEl.removeAttribute('animation__fadeout');
+          inkManifestationEl.setAttribute('material.opacity', 0);
+        }
+      });
+      document.querySelector('a-scene').setAttribute('ar-control', '');
+
+      captureBtn.addEventListener('click', () => {
+        sendLog('capture');
+        const sceneEl = document.querySelector('a-scene');
+        const aframeCanvas = sceneEl.canvas;
+        const video = document.querySelector('video');
+
+        sceneEl.renderer.render(sceneEl.object3D, sceneEl.camera);
+
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        
+        const canvas = document.createElement('canvas');
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        if (video) {
+          const videoRatio = video.videoWidth / video.videoHeight;
+          const screenRatio = w / h;
+          let drawWidth, drawHeight, startX, startY;
+          if (videoRatio > screenRatio) {
+              drawHeight = h;
+              drawWidth = video.videoWidth * (h / video.videoHeight);
+              startX = (w - drawWidth) / 2;
+              startY = 0;
+          } else {
+              drawWidth = w;
+              drawHeight = video.videoHeight * (w / video.videoWidth);
+              startX = 0;
+              startY = (h - drawHeight) / 2;
+          }
+          ctx.drawImage(video, startX, startY, drawWidth, drawHeight);
+        }
+
+        if (aframeCanvas) {
+          ctx.drawImage(aframeCanvas, 0, 0, w, h);
+        }
+
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(0, 0, w, 100); 
+        ctx.fillRect(0, h - 100, w, 100); 
+
+        ctx.fillStyle = '#FFF';
+        ctx.textAlign = 'center';
+        
+        ctx.font = 'bold 28px "Yu Mincho", "Hiragino Mincho ProN", serif';
+        ctx.fillText(t.stampTitle, w / 2, 45);
+
+        const now = new Date();
+        const dateStr = t.dateFormat(now);
+        ctx.font = '16px "Yu Mincho", "Hiragino Mincho ProN", serif';
+        ctx.fillText(dateStr, w / 2, 75);
+
+        // ④ 天気アイコンを右上に描画
+        const weatherIcon = currentWeather === 'rain' ? '🌧️' : currentWeather === 'snow' ? '❄️' : '☀️';
+        ctx.font = '22px serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(weatherIcon, w - 16, 38);
+        ctx.textAlign = 'center';
+
+        const settings = getTimeAndWeatherSettings();
+        ctx.font = 'italic 16px "Yu Mincho", "Hiragino Mincho ProN", serif';
+        ctx.fillText(settings.message, w / 2, h - 45);
+
+        resultImage.src = canvas.toDataURL('image/jpeg', 0.9);
+        resultModal.style.display = 'flex';
+
+        // ★追加: 撮影した瞬間の「カシャッ」という振動
+        if (navigator.vibrate) navigator.vibrate(200);
+
+        // ★追加: SNSシェア用にCanvasを「Fileオブジェクト」に変換して保持
+        canvas.toBlob((blob) => {
+          window.currentShareFile = new File([blob], "goshuin_ar.jpg", { type: "image/jpeg" });
+        }, "image/jpeg", 0.9);
+      });
+
+      // ★追加: SNSシェア機能のロジック
+      shareBtn.addEventListener('click', async () => {
+        // ボタンを押した時の軽い振動
+        if (navigator.vibrate) navigator.vibrate(50);
+
+        if (navigator.share && window.currentShareFile) {
+          try {
+            // ブラウザが「画像ファイルの直接シェア」に対応しているかチェック
+            if (navigator.canShare && navigator.canShare({ files: [window.currentShareFile] })) {
+              await navigator.share({
+                title: t.title,
+                text: t.shareText,
+                files: [window.currentShareFile] // 画像を直接添付
+              });
+            } else {
+              // 画像添付に対応していないブラウザの場合（テキストとURLだけシェア）
+              await navigator.share({
+                title: t.title,
+                text: t.shareText,
+                url: window.location.href
+              });
+            }
+            // シェア成功ログを送信
+            if (typeof sendLog === 'function') sendLog('share_success');
+          } catch (error) {
+            console.log('シェアがキャンセルされたか、失敗しました', error);
+          }
+        } else {
+          alert(t.shareError);
+        }
+      });
+
+      closeModal.addEventListener('click', () => {
+        resultModal.style.display = 'none';
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) { audioEl.pause(); } 
+        else { if (isTracking) audioEl.play().catch(e => console.warn(e)); }
+      });
+    </script>
+  </body>
 </html>
