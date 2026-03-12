@@ -71,9 +71,11 @@
           altText:        '参拝の証',
           closeBtn:       '戻る',
           stampTitle:     '参拝之証',
-          shareBtn:       'SNSでシェアする', // ★追加
-          shareText:      '神域の空気を持ち帰りました。 #北野天満宮 #奉拝AR', // ★追加
-          shareError:     'お使いのブラウザはシェア機能に対応していません。画像を長押しして保存してください。', // ★追加
+          shareBtn:       'SNSでシェアする',
+          shareText:      '神域の空気を持ち帰りました。 #北野天満宮 #奉拝AR',
+          shareError:     'お使いのブラウザはシェア機能に対応していません。画像を長押しして保存してください。',
+          cameraNote:     '※ カメラへのアクセスを許可してください',
+          scanMsg:        '御朱印をカメラに向けてください…',
           dateFormat:     (d) => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`,
           timeMsgs:       { morning: '朝霧の', midday: '白日の', evening: '黄昏時の', night: '月明かりの' },
           weatherMsgs:    { rain: '雨降る神域にて', snow: '雪化粧の神域にて', clear: '清冽なる神域にて' },
@@ -88,9 +90,11 @@
           altText:        'Proof of Visit',
           closeBtn:       'Back',
           stampTitle:     'Proof of Visit',
-          shareBtn:       'Share', // ★追加
-          shareText:      'I brought back the sacred air. #KitanoTenmangu #AR', // ★追加
-          shareError:     'Your browser does not support the Web Share API. Please long-press the image to save it.', // ★追加
+          shareBtn:       'Share',
+          shareText:      'I brought back the sacred air. #KitanoTenmangu #AR',
+          shareError:     'Your browser does not support the Web Share API. Please long-press the image to save it.',
+          cameraNote:     '※ Please allow camera access when prompted.',
+          scanMsg:        'Point your camera at the御朱印 (goshuin)…',
           dateFormat:     (d) => `${d.toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric'})} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`,
           timeMsgs:       { morning: 'Morning mist —', midday: 'Midday light —', evening: 'Evening glow —', night: 'Moonlit' },
           weatherMsgs:    { rain: 'in the rain-blessed shrine', snow: 'in the snow-covered shrine', clear: 'in the sacred stillness' },
@@ -294,6 +298,13 @@
     <div id="start-overlay">
       <h1 id="overlay-head">参拝を開始します</h1>
       <p id="overlay-body">スマートフォンを持ったまま軽く一礼し、<br>画面をタップしてください</p>
+      <p id="camera-note" style="margin-top:18px; font-size:13px; color:#aaa; letter-spacing:1px;">※ カメラへのアクセスを許可してください</p>
+    </div>
+
+    <!-- ②自前スキャンUI -->
+    <div id="scan-overlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:9990; pointer-events:none; flex-direction:column; align-items:center; justify-content:center;">
+      <p id="scan-msg" style="color:rgba(255,255,255,0.85); font-family:'Yu Mincho','Hiragino Mincho ProN',serif; font-size:16px; letter-spacing:2px; text-shadow:0 1px 4px rgba(0,0,0,0.8); margin:0;">御朱印をカメラに向けてください…</p>
+      <div style="margin-top:16px; width:180px; height:180px; border:2px solid rgba(212,175,55,0.7); border-radius:8px; box-shadow:0 0 20px rgba(212,175,55,0.3);"></div>
     </div>
 
     <div id="capture-btn">参拝の証を刻む</div>
@@ -308,7 +319,7 @@
     </div>
 
     <a-scene
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: yes;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;"
       color-space="sRGB" renderer="colorManagement: true; preserveDrawingBuffer: true;"
       vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
     >
@@ -413,11 +424,13 @@
         document.getElementById('page-title').textContent     = t.title;
         document.getElementById('overlay-head').textContent   = t.overlayHead;
         document.getElementById('overlay-body').innerHTML     = t.overlayBody;
+        document.getElementById('camera-note').textContent    = t.cameraNote;
         document.getElementById('capture-btn').textContent    = t.captureBtn;
         document.getElementById('save-hint').textContent      = t.saveHint;
         document.getElementById('result-image').alt           = t.altText;
-        document.getElementById('share-btn').textContent      = t.shareBtn; // ★追加
+        document.getElementById('share-btn').textContent      = t.shareBtn;
         document.getElementById('close-modal').textContent    = t.closeBtn;
+        document.getElementById('scan-msg').textContent       = t.scanMsg;
 
         const settings = getTimeAndWeatherSettings();
         const lightEl = document.getElementById('ambient-light');
@@ -439,44 +452,71 @@
       const resultImage = document.getElementById('result-image');
       const closeModal = document.getElementById('close-modal');
 
+      const scanOverlay = document.getElementById('scan-overlay');
+
       let lostTimeout; 
       let isTracking = false;
       let arLogSent = false;
 
       overlay.addEventListener('click', function() {
         overlay.style.opacity = '0';
-        setTimeout(() => { overlay.style.display = 'none'; }, 1500);
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          // スキャンUIを表示
+          scanOverlay.style.display = 'flex';
+        }, 1500);
         try {
           audioEl.volume = 0; audioEl.play().then(() => { audioEl.pause(); audioEl.currentTime = 0; });
         } catch(e) {}
       });
 
+      // ③ BGMフェードイン・アウト用ユーティリティ
+      function fadeAudio(targetVol, duration) {
+        const steps = 30;
+        const interval = duration / steps;
+        const startVol = audioEl.volume;
+        const delta = (targetVol - startVol) / steps;
+        let step = 0;
+        const timer = setInterval(() => {
+          step++;
+          audioEl.volume = Math.max(0, Math.min(1, startVol + delta * step));
+          if (step >= steps) clearInterval(timer);
+        }, interval);
+      }
+
       AFRAME.registerComponent('ar-control', {
         init: function () {
           targetEl.addEventListener('targetFound', event => {
-            // ★追加: Android等なら「トトトッ」と神聖な振動
             if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
 
             isTracking = true;
             if (lostTimeout) { clearTimeout(lostTimeout); lostTimeout = null; }
             manifestationEl.setAttribute('visible', true);
-            captureBtn.style.display = 'block'; 
+            captureBtn.style.display = 'block';
+            // スキャンUI非表示
+            scanOverlay.style.display = 'none';
             this.playInkSequence();
-            audioEl.volume = 0.3; audioEl.play();
+            // ③ フェードインで再生（0 → 0.3 を1.5秒かけて）
+            audioEl.play();
+            fadeAudio(0.3, 1500);
             if (!arLogSent) {
-              sendLog('ar_found'); 
+              sendLog('ar_found');
               arLogSent = true;
             }
           });
 
           targetEl.addEventListener('targetLost', event => {
             isTracking = false;
-            captureBtn.style.display = 'none'; 
+            captureBtn.style.display = 'none';
+            // スキャンUI再表示
+            scanOverlay.style.display = 'flex';
             lostTimeout = setTimeout(() => {
               manifestationEl.setAttribute('visible', false);
               this.resetInkManifestation();
-              audioEl.pause();
-            }, 3000); 
+              // ③ フェードアウトで停止（0.3 → 0 を2秒かけて）
+              fadeAudio(0, 2000);
+              setTimeout(() => { audioEl.pause(); audioEl.volume = 0; }, 2100);
+            }, 3000);
           });
         },
         playInkSequence: function () {
@@ -548,6 +588,13 @@
         const dateStr = t.dateFormat(now);
         ctx.font = '16px "Yu Mincho", "Hiragino Mincho ProN", serif';
         ctx.fillText(dateStr, w / 2, 75);
+
+        // ④ 天気アイコンを右上に描画
+        const weatherIcon = currentWeather === 'rain' ? '🌧️' : currentWeather === 'snow' ? '❄️' : '☀️';
+        ctx.font = '22px serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(weatherIcon, w - 16, 38);
+        ctx.textAlign = 'center';
 
         const settings = getTimeAndWeatherSettings();
         ctx.font = 'italic 16px "Yu Mincho", "Hiragino Mincho ProN", serif';
