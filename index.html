@@ -214,9 +214,6 @@
             // フォント設定（Kaisei Decol が読み込まれていれば使用、なければ明朝フォールバック）
             const fontSize = 32;
             ctx.font = `bold ${fontSize}px "Kaisei Decol", "Yu Mincho", "Hiragino Mincho ProN", serif`;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-            ctx.shadowBlur = 6;
             ctx.textAlign = 'center';
 
             // 右上に縦書き配置
@@ -226,7 +223,19 @@
             const x = SIZE - marginRight;
 
             charArray.forEach((ch, i) => {
-              ctx.fillText(ch, x, marginTop + fontSize + i * lineHeight);
+              const y = marginTop + fontSize + i * lineHeight;
+              // 縁取り（黒）で文字を引き立てる
+              ctx.shadowColor = 'transparent';
+              ctx.shadowBlur = 0;
+              ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+              ctx.lineWidth = 5;
+              ctx.lineJoin = 'round';
+              ctx.strokeText(ch, x, y);
+              // 本体：金色
+              ctx.fillStyle = '#D4AF37';
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+              ctx.shadowBlur = 4;
+              ctx.fillText(ch, x, y);
             });
 
             // canvasをA-Frameテクスチャとして適用
