@@ -1,16 +1,20 @@
 // sw.js
-const CACHE_NAME = 'goshuin-ar-v1';
+const CACHE_NAME = 'goshuin-ar-v2';
 
 // キャッシュしておきたいローカルファイルの一覧
 const urlsToCache = [
   './',
   './index.html',
+  './shrines.json',
   './targets.mind',
   './ume_petal.png',
   './kamon.png',
   './ink_aura.png',
   './oritsuru_merrygoround.glb',
+  // './awataguchi_model.glb',
+  //'./awataguchi_audio.mp3',
   './tenmangu_ambient.mp3'
+
 ];
 
 // インストール時にファイルをキャッシュに保存
