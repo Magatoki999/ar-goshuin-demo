@@ -1,0 +1,14 @@
+[
+  {
+    "id": "kitano_tenmangu",
+    "name": "北野天満宮",
+    "model": "./oritsuru_merrygoround.glb",
+    "audio": "./tenmangu_ambient.mp3"
+  },
+  {
+    "id": "awataguchi_tenmangu",
+    "name": "粟田口神社",
+    "model": "./awataguchi_model.glb",
+    "audio": "./awataguchi_audio.mp3"
+  }
+]
