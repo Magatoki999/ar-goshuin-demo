@@ -242,8 +242,8 @@
             ctx.textAlign = 'center';
 
             // 右上に縦書き配置
-            const marginRight = 60;   
-            const marginTop   = 30;   
+            const marginRight = 60;
+            const marginTop   = 30;  
             const lineHeight  = fontSize + 6;
             const x = SIZE - marginRight;
 
@@ -362,7 +362,26 @@
         weather:    'entry.134011435',
         timeOfDay:  'entry.58239131',
         event:      'entry.957978847',
+        os:         'entry.1864875576', // ★追加・修正：取得したIDに書き換えました
       };
+
+      // ★追加：OSを判別する関数
+      function getOS() {
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        
+        // Androidチェック
+        if (/android/i.test(userAgent)) {
+          return "Android";
+        }
+
+        // iOSチェック (iPadOSも含む)
+        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+          return "iOS";
+        }
+        
+        // 判別できない場合
+        return "Other";
+      }
 
       function sendLog(eventName) {
         const hour = new Date().getHours();
@@ -378,6 +397,7 @@
         body.append(FORM_FIELDS.weather,   currentWeather);
         body.append(FORM_FIELDS.timeOfDay, timeOfDay);
         body.append(FORM_FIELDS.event,     eventName);
+        body.append(FORM_FIELDS.os,        getOS()); // ★追加：OS情報を追加
 
         fetch(FORM_ACTION, { method: 'POST', body, mode: 'no-cors' }).catch(() => {});
       }
@@ -655,11 +675,3 @@
     </script>
   </body>
 </html>
-
-
-
-
-
-
-
-
