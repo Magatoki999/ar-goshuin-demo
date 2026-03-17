@@ -41,7 +41,6 @@
       #result-image { max-width: 90%; max-height: 75%; border: 2px solid #D4AF37; box-shadow: 0 0 20px rgba(212, 175, 55, 0.3); object-fit: contain;}
       #close-modal { margin-top: 25px; padding: 10px 40px; border: 1px solid #fff; border-radius: 20px; cursor: pointer; font-size: 14px; }
 
-      /* ★追加: シェアボタンのスタイル */
       #share-btn {
         margin-top: 20px;
         padding: 12px 40px;
@@ -192,7 +191,6 @@
         }
       });
 
-      // ── ink_aura に縦書き日付を焼き込むコンポーネント ────────────────────
       AFRAME.registerComponent('ink-date-texture', {
         init: function () {
           const el = this.el;
@@ -204,13 +202,9 @@
             canvas.width = SIZE; canvas.height = SIZE;
             const ctx = canvas.getContext('2d');
 
-            // ink_aura.png を描画
             ctx.drawImage(img, 0, 0, SIZE, SIZE);
 
-            // 和暦・漢数字変換
             const now = new Date();
-
-            // 元号テーブル（西暦の開始年月日で定義）
             const eras = [
               { name: '令和', start: new Date(2019,  4, 1) },
               { name: '平成', start: new Date(1989,  0, 8) },
@@ -226,22 +220,18 @@
                                '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十',
                                '二十一','二十二','二十三','二十四','二十五','二十六','二十七','二十八','二十九','三十','三十一'];
 
-            // 元号年（1年→「元」）
             const gyYear = now.getFullYear() - era.start.getFullYear() + 1;
             const gyYearStr = gyYear === 1 ? '元' : kanjiNums[gyYear] || String(gyYear);
             const month = kanjiNums[now.getMonth() + 1];
             const day   = kanjiNums[now.getDate()];
 
-            // 縦書き用に一文字ずつ展開
             const dateStr = `${era.name}${gyYearStr}年${month}月${day}日`;
             const charArray = dateStr.split('');
 
-            // フォント設定
             const fontSize = 32;
             ctx.font = `bold ${fontSize}px "Kaisei Decol", "Yu Mincho", "Hiragino Mincho ProN", serif`;
             ctx.textAlign = 'center';
 
-            // 右上に縦書き配置
             const marginRight = 60;
             const marginTop   = 30;  
             const lineHeight  = fontSize + 6;
@@ -261,7 +251,6 @@
               ctx.fillText(ch, x, y);
             });
 
-            // canvasをA-Frameテクスチャとして適用
             el.setAttribute('material', {
               shader: 'flat',
               src: canvas,
@@ -278,7 +267,6 @@
           }
         }
       });
-      // ──────────────────────────────────────────────────────────────────────
     </script>
     <script>
       if ('serviceWorker' in navigator) {
@@ -301,7 +289,6 @@
       <p id="camera-note" style="margin-top:18px; font-size:13px; color:#aaa; letter-spacing:1px;">※ カメラへのアクセスを許可してください</p>
     </div>
 
-    <!-- ②自前スキャンUI -->
     <div id="scan-overlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:9990; pointer-events:none; flex-direction:column; align-items:center; justify-content:center;">
       <p id="scan-msg" style="color:rgba(255,255,255,0.85); font-family:'Yu Mincho','Hiragino Mincho ProN',serif; font-size:16px; letter-spacing:2px; text-shadow:0 1px 4px rgba(0,0,0,0.8); margin:0;">カメラを栞（はさみ紙）に向けてください…</p>
       <div style="margin-top:16px; width:180px; height:180px; border:2px solid rgba(212,175,55,0.7); border-radius:8px; box-shadow:0 0 20px rgba(212,175,55,0.3);"></div>
@@ -312,9 +299,7 @@
     <div id="result-modal">
       <p id="save-hint">画像を長押しして保存してください</p>
       <img id="result-image" src="" alt="参拝の証">
-      
       <button id="share-btn">SNSでシェアする</button>
-      
       <div id="close-modal">戻る</div>
     </div>
 
@@ -327,34 +312,15 @@
         <img id="umeTexture" src="./ume_petal.png" crossorigin="anonymous">
         <img id="kamonTexture" src="./kamon.png" crossorigin="anonymous">
         <img id="inkAura" src="./ink_aura.png" crossorigin="anonymous"> 
-        <a-asset-item id="orizuruModel" src="./oritsuru_merrygoround.glb"></a-asset-item>
         <audio id="sacredAudio" src="./tenmangu_ambient.mp3" preload="auto" loop></audio>
       </a-assets>
 
       <a-light id="ambient-light" type="ambient" color="#ffffff" intensity="2.0"></a-light>
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity id="target0" mindar-image-target="targetIndex: 0">
-        <a-entity id="manifestation" visible="false">
-          
-          <a-image id="inkManifestation" src="#inkAura" position="0 0 0.02" scale="1.5 1.5 1" material="shader: flat; transparent: true; depthWrite: false; opacity: 0;" boiling-effect="intensity: 0.002; speed: 120;" ink-date-texture></a-image>
-
-          <a-entity position="0 0 0.05" animation="property: scale; from: 0.75 0.75 0.75; to: 0.85 0.85 0.85; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine;">
-            <a-image src="#kamonTexture" scale="1 1 1" material="transparent: true; blending: additive; opacity: 0.8;" animation="property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;"></a-image>
-          </a-entity>
-
-          <a-gltf-model src="#orizuruModel" position="0 0 0.1" scale="0.1 0.1 0.1" animation-mixer></a-gltf-model>
-          
-          <a-entity id="effect-clear" petal-system="count: 40; area: 0.8;" visible="true"></a-entity>
-          <a-entity id="effect-rain" rain-system="count: 100; area: 0.8;" visible="false"></a-entity>
-          <a-entity id="effect-snow" snow-system="count: 80; area: 0.8;" visible="false"></a-entity>
-
-        </a-entity>
-      </a-entity>
-    </a-scene>
+      </a-scene>
 
     <script>
-      // ── アクセスログ送信（Googleフォーム経由）────────────────────────────
       const FORM_ACTION = 'https://docs.google.com/forms/d/e/1FAIpQLSfjby8c1dWsFUI4sK_FWzwtT09LqvgKFGebga5__xQmc1fioA/formResponse';
       const FORM_FIELDS = {
         timestamp:  'entry.209041019',
@@ -362,24 +328,13 @@
         weather:    'entry.134011435',
         timeOfDay:  'entry.58239131',
         event:      'entry.957978847',
-        os:         'entry.1864875576', // ★追加・修正：取得したIDに書き換えました
+        os:         'entry.1864875576',
       };
 
-      // ★追加：OSを判別する関数
       function getOS() {
         const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-        
-        // Androidチェック
-        if (/android/i.test(userAgent)) {
-          return "Android";
-        }
-
-        // iOSチェック (iPadOSも含む)
-        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-          return "iOS";
-        }
-        
-        // 判別できない場合
+        if (/android/i.test(userAgent)) return "Android";
+        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) return "iOS";
         return "Other";
       }
 
@@ -397,11 +352,10 @@
         body.append(FORM_FIELDS.weather,   currentWeather);
         body.append(FORM_FIELDS.timeOfDay, timeOfDay);
         body.append(FORM_FIELDS.event,     eventName);
-        body.append(FORM_FIELDS.os,        getOS()); // ★追加：OS情報を追加
+        body.append(FORM_FIELDS.os,        getOS()); 
 
         fetch(FORM_ACTION, { method: 'POST', body, mode: 'no-cors' }).catch(() => {});
       }
-      // ──────────────────────────────────────────────────────────────────────
 
       let currentWeather = 'clear';
 
@@ -414,9 +368,10 @@
             else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) currentWeather = 'snow';
             else currentWeather = 'clear';
 
-            document.getElementById('effect-clear').setAttribute('visible', currentWeather === 'clear');
-            document.getElementById('effect-rain').setAttribute('visible', currentWeather === 'rain');
-            document.getElementById('effect-snow').setAttribute('visible', currentWeather === 'snow');
+            // ★変更：動的生成された全ターゲットのエフェクト表示を一括更新
+            document.querySelectorAll('.effect-clear').forEach(el => el.setAttribute('visible', currentWeather === 'clear'));
+            document.querySelectorAll('.effect-rain').forEach(el => el.setAttribute('visible', currentWeather === 'rain'));
+            document.querySelectorAll('.effect-snow').forEach(el => el.setAttribute('visible', currentWeather === 'snow'));
           })
           .catch(e => {
             console.warn("天気API取得スキップ（晴れとして進行）:", e);
@@ -439,8 +394,107 @@
         return { lightColor, message: t.msgFormat(timeMsg, weatherMsg) };
       }
 
+      // ★追加：JSONの読み込みとターゲット生成
+      let currentShrineData = null; // 現在スキャン中の神社情報
+      let targetTimeouts = {};      // ターゲットごとのタイムアウト管理用
+
+      function loadShrines() {
+        fetch('./shrines.json')
+          .then(response => response.json())
+          .then(data => {
+            const sceneEl = document.querySelector('a-scene');
+            
+            data.forEach((shrine, index) => {
+              const targetEl = document.createElement('a-entity');
+              targetEl.setAttribute('mindar-image-target', `targetIndex: ${index}`);
+              
+              // IDではなくClassで要素を指定するようテンプレートを修正
+              targetEl.innerHTML = `
+                <a-entity class="manifestation" visible="false">
+                  <a-image class="inkManifestation" src="#inkAura" position="0 0 0.02" scale="1.5 1.5 1" material="shader: flat; transparent: true; depthWrite: false; opacity: 0;" boiling-effect="intensity: 0.002; speed: 120;" ink-date-texture></a-image>
+
+                  <a-entity position="0 0 0.05" animation="property: scale; from: 0.75 0.75 0.75; to: 0.85 0.85 0.85; dir: alternate; loop: true; dur: 4000; easing: easeInOutSine;">
+                    <a-image src="#kamonTexture" scale="1 1 1" material="transparent: true; blending: additive; opacity: 0.8;" animation="property: rotation; to: 0 0 360; loop: true; dur: 30000; easing: linear;"></a-image>
+                  </a-entity>
+
+                  <a-gltf-model src="${shrine.model}" position="0 0 0.1" scale="0.1 0.1 0.1" animation-mixer></a-gltf-model>
+                  
+                  <a-entity class="effect-clear" petal-system="count: 40; area: 0.8;" visible="${currentWeather === 'clear'}"></a-entity>
+                  <a-entity class="effect-rain" rain-system="count: 100; area: 0.8;" visible="${currentWeather === 'rain'}"></a-entity>
+                  <a-entity class="effect-snow" snow-system="count: 80; area: 0.8;" visible="${currentWeather === 'snow'}"></a-entity>
+                </a-entity>
+              `;
+
+              sceneEl.appendChild(targetEl);
+
+              // イベントリスナーの登録
+              const manifestationEl = targetEl.querySelector('.manifestation');
+              const inkManifestationEl = targetEl.querySelector('.inkManifestation');
+
+              targetEl.addEventListener('targetFound', () => {
+                if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+
+                isTracking = true;
+                currentShrineData = shrine; // 現在の神社を保持
+
+                if (targetTimeouts[`lost_${index}`]) { 
+                  clearTimeout(targetTimeouts[`lost_${index}`]); 
+                  targetTimeouts[`lost_${index}`] = null; 
+                }
+                
+                manifestationEl.setAttribute('visible', true);
+                captureBtn.style.display = 'block';
+                scanOverlay.style.display = 'none';
+
+                // インクアニメーションの再生
+                resetInk(inkManifestationEl, index);
+                inkManifestationEl.setAttribute('animation__bleed', 'property: material.opacity; from: 0; to: 0.8; dur: 2000; easing: easeOutCubic;');
+                
+                targetTimeouts[`fade_${index}`] = setTimeout(() => {
+                  if (isTracking) { 
+                    inkManifestationEl.setAttribute('animation__fadeout', 'property: material.opacity; from: 0.8; to: 0; dur: 4000; easing: easeInCubic;'); 
+                  }
+                }, 5000);
+
+                audioEl.play().catch(()=>{});
+                fadeAudio(0.3, 1500);
+
+                if (!arLogSent) {
+                  sendLog(`ar_found_${shrine.id}`);
+                  arLogSent = true;
+                }
+              });
+
+              targetEl.addEventListener('targetLost', () => {
+                isTracking = false;
+                captureBtn.style.display = 'none';
+                scanOverlay.style.display = 'flex';
+                
+                targetTimeouts[`lost_${index}`] = setTimeout(() => {
+                  manifestationEl.setAttribute('visible', false);
+                  resetInk(inkManifestationEl, index);
+                  
+                  fadeAudio(0, 2000);
+                  setTimeout(() => { audioEl.pause(); audioEl.volume = 0; }, 2100);
+                }, 3000);
+              });
+            });
+          })
+          .catch(err => console.error('Shrines data loading failed:', err));
+      }
+
+      // インクリセット用の共通関数
+      function resetInk(inkEl, index) {
+        if (targetTimeouts[`fade_${index}`]) { 
+          clearTimeout(targetTimeouts[`fade_${index}`]); 
+          targetTimeouts[`fade_${index}`] = null; 
+        }
+        inkEl.removeAttribute('animation__bleed'); 
+        inkEl.removeAttribute('animation__fadeout');
+        inkEl.setAttribute('material.opacity', 0);
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
-        // Apply i18n strings
         document.getElementById('page-title').textContent     = t.title;
         document.getElementById('overlay-head').textContent   = t.overlayHead;
         document.getElementById('overlay-body').innerHTML     = t.overlayBody;
@@ -457,24 +511,21 @@
         if (lightEl) lightEl.setAttribute('color', settings.lightColor);
         
         fetchWeatherBackground();
+        loadShrines(); // ★JSON読み込み＆ターゲット生成を開始
         sendLog('access');
       });
 
       const overlay = document.getElementById('start-overlay');
       const audioEl = document.querySelector('#sacredAudio');
-      const targetEl = document.querySelector('#target0');
-      const manifestationEl = document.querySelector('#manifestation');
-      const inkManifestationEl = document.querySelector('#inkManifestation');
       
       const captureBtn = document.getElementById('capture-btn');
-      const shareBtn = document.getElementById('share-btn'); // ★追加
+      const shareBtn = document.getElementById('share-btn');
       const resultModal = document.getElementById('result-modal');
       const resultImage = document.getElementById('result-image');
       const closeModal = document.getElementById('close-modal');
 
       const scanOverlay = document.getElementById('scan-overlay');
 
-      let lostTimeout; 
       let isTracking = false;
       let arLogSent = false;
 
@@ -482,7 +533,6 @@
         overlay.style.opacity = '0';
         setTimeout(() => {
           overlay.style.display = 'none';
-          // スキャンUIを表示
           scanOverlay.style.display = 'flex';
         }, 1500);
         try {
@@ -490,7 +540,6 @@
         } catch(e) {}
       });
 
-      // ③ BGMフェードイン・アウト用ユーティリティ
       function fadeAudio(targetVol, duration) {
         const steps = 30;
         const interval = duration / steps;
@@ -504,58 +553,11 @@
         }, interval);
       }
 
-      AFRAME.registerComponent('ar-control', {
-        init: function () {
-          targetEl.addEventListener('targetFound', event => {
-            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
-
-            isTracking = true;
-            if (lostTimeout) { clearTimeout(lostTimeout); lostTimeout = null; }
-            manifestationEl.setAttribute('visible', true);
-            captureBtn.style.display = 'block';
-            // スキャンUI非表示
-            scanOverlay.style.display = 'none';
-            this.playInkSequence();
-            // ③ フェードインで再生（0 → 0.3 を1.5秒かけて）
-            audioEl.play();
-            fadeAudio(0.3, 1500);
-            if (!arLogSent) {
-              sendLog('ar_found');
-              arLogSent = true;
-            }
-          });
-
-          targetEl.addEventListener('targetLost', event => {
-            isTracking = false;
-            captureBtn.style.display = 'none';
-            // スキャンUI再表示
-            scanOverlay.style.display = 'flex';
-            lostTimeout = setTimeout(() => {
-              manifestationEl.setAttribute('visible', false);
-              this.resetInkManifestation();
-              // ③ フェードアウトで停止（0.3 → 0 を2秒かけて）
-              fadeAudio(0, 2000);
-              setTimeout(() => { audioEl.pause(); audioEl.volume = 0; }, 2100);
-            }, 3000);
-          });
-        },
-        playInkSequence: function () {
-          this.resetInkManifestation();
-          inkManifestationEl.setAttribute('animation__bleed', 'property: material.opacity; from: 0; to: 0.8; dur: 2000; easing: easeOutCubic;');
-          this.fadeOutTimeout = setTimeout(() => {
-            if (isTracking) { inkManifestationEl.setAttribute('animation__fadeout', 'property: material.opacity; from: 0.8; to: 0; dur: 4000; easing: easeInCubic;'); }
-          }, 5000);
-        },
-        resetInkManifestation: function () {
-          if (this.fadeOutTimeout) { clearTimeout(this.fadeOutTimeout); this.fadeOutTimeout = null; }
-          inkManifestationEl.removeAttribute('animation__bleed'); inkManifestationEl.removeAttribute('animation__fadeout');
-          inkManifestationEl.setAttribute('material.opacity', 0);
-        }
-      });
-      document.querySelector('a-scene').setAttribute('ar-control', '');
-
       captureBtn.addEventListener('click', () => {
-        sendLog('capture');
+        // ★変更：どの神社で撮影されたかをログ送信
+        const captureLogName = currentShrineData ? `capture_${currentShrineData.id}` : 'capture';
+        sendLog(captureLogName);
+        
         const sceneEl = document.querySelector('a-scene');
         const aframeCanvas = sceneEl.canvas;
         const video = document.querySelector('video');
@@ -602,6 +604,7 @@
         ctx.textAlign = 'center';
         
         ctx.font = 'bold 28px "Yu Mincho", "Hiragino Mincho ProN", serif';
+        // ★変更：JSONに神社名が含まれる場合は「〇〇神社 参拝之証」のように拡張可能（ここでは元のまま）
         ctx.fillText(t.stampTitle, w / 2, 45);
 
         const now = new Date();
@@ -609,7 +612,6 @@
         ctx.font = '16px "Yu Mincho", "Hiragino Mincho ProN", serif';
         ctx.fillText(dateStr, w / 2, 75);
 
-        // ④ 天気アイコンを右上に描画
         const weatherIcon = currentWeather === 'rain' ? '🌧️' : currentWeather === 'snow' ? '❄️' : '☀️';
         ctx.font = '22px serif';
         ctx.textAlign = 'right';
@@ -618,43 +620,42 @@
 
         const settings = getTimeAndWeatherSettings();
         ctx.font = 'italic 16px "Yu Mincho", "Hiragino Mincho ProN", serif';
+        
+        // ★変更：メッセージに神社名を含めることも可能
+        // const shrineText = currentShrineData ? `（${currentShrineData.name}）` : '';
+        // ctx.fillText(settings.message + shrineText, w / 2, h - 45);
         ctx.fillText(settings.message, w / 2, h - 45);
 
         resultImage.src = canvas.toDataURL('image/jpeg', 0.9);
         resultModal.style.display = 'flex';
 
-        // ★追加: 撮影した瞬間の「カシャッ」という振動
         if (navigator.vibrate) navigator.vibrate(200);
 
-        // ★追加: SNSシェア用にCanvasを「Fileオブジェクト」に変換して保持
         canvas.toBlob((blob) => {
           window.currentShareFile = new File([blob], "goshuin_ar.jpg", { type: "image/jpeg" });
         }, "image/jpeg", 0.9);
       });
 
-      // ★追加: SNSシェア機能のロジック
       shareBtn.addEventListener('click', async () => {
-        // ボタンを押した時の軽い振動
         if (navigator.vibrate) navigator.vibrate(50);
 
         if (navigator.share && window.currentShareFile) {
           try {
-            // ブラウザが「画像ファイルの直接シェア」に対応しているかチェック
             if (navigator.canShare && navigator.canShare({ files: [window.currentShareFile] })) {
+              // ★変更：シェアテキストに神社名を動的に入れることもできます
+              // const shareText = currentShrineData ? `${currentShrineData.name}の空気を持ち帰りました。 #御朱印 #奉拝AR #京都` : t.shareText;
               await navigator.share({
                 title: t.title,
                 text: t.shareText,
-                files: [window.currentShareFile] // 画像を直接添付
+                files: [window.currentShareFile] 
               });
             } else {
-              // 画像添付に対応していないブラウザの場合（テキストとURLだけシェア）
               await navigator.share({
                 title: t.title,
                 text: t.shareText,
                 url: window.location.href
               });
             }
-            // シェア成功ログを送信
             if (typeof sendLog === 'function') sendLog('share_success');
           } catch (error) {
             console.log('シェアがキャンセルされたか、失敗しました', error);
