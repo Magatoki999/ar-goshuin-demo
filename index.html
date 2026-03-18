@@ -266,16 +266,38 @@
               ctx.fillText(ch, xRight, y);
             });
 
-            // ② 左上に縦書き配置（おみくじ・朱色） ★追加部分
-            const blessings = [
-              '心願成就', '厄除開運', '無病息災', 
-              '商売繁盛', '良縁祈願', '千客万来', 
-              '学業成就', '家内安全', '大吉福徳', '金運上昇'
-            ];
-            // 起動時にランダムで1つ選択
-            const randomBlessing = blessings[Math.floor(Math.random() * blessings.length)];
-            const blessingArray = randomBlessing.split('');
+            // ② 左上に縦書き配置（特定日の隠し要素 ＋ ランダムおみくじ）
+            const checkMonth = now.getMonth() + 1;
+            const checkDate = now.getDate();
 
+            let selectedBlessing = '';
+            let blessingColor = '#C73D2C'; // デフォルトの朱色
+
+            // 隠し要素の判定（優先度順）
+            if (checkMonth === 1 && checkDate <= 3) {
+              // 1月1日〜3日：お正月特別
+              selectedBlessing = '新春大吉';
+              blessingColor = '#D4AF37'; // 金色
+            } else if (checkDate === 25) {
+              // 毎月25日：天神様の縁日（飛梅の日にちなむ）
+              selectedBlessing = '天神縁日';
+              blessingColor = '#8A2BE2'; // 高貴な紫色（または梅のような濃いピンク）
+            } else if (checkDate === 1) {
+              // 毎月1日：朔日参り
+              selectedBlessing = '朔日奉拝';
+              blessingColor = '#1A4472'; // 厳かな濃紺色
+            } else {
+              // 通常の日：ランダムなご利益
+              const blessings = [
+                '心願成就', '厄除開運', '無病息災', 
+                '商売繁盛', '良縁祈願', '千客万来', 
+                '学業成就', '家内安全', '大吉福徳', '金運上昇'
+              ];
+              selectedBlessing = blessings[Math.floor(Math.random() * blessings.length)];
+              // blessingColor はデフォルトの朱色のまま
+            }
+
+            const blessingArray = selectedBlessing.split('');
             const marginLeft = 60;
             const xLeft = marginLeft;
 
@@ -290,8 +312,8 @@
               ctx.lineJoin = 'round';
               ctx.strokeText(ch, xLeft, y);
               
-              // 朱色で描画
-              ctx.fillStyle = '#C73D2C'; 
+              // 判定された色で描画
+              ctx.fillStyle = blessingColor; 
               ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
               ctx.shadowBlur = 4;
               ctx.fillText(ch, xLeft, y);
