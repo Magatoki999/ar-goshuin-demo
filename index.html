@@ -133,23 +133,32 @@
       });
 
       AFRAME.registerComponent('rain-system', {
-        schema: { count: {type: 'int', default: 100}, area: {type: 'number', default: 1.0} },
+        schema: { count: {type: 'int', default: 250}, area: {type: 'number', default: 1.2} },
         init: function () {
           this.drops = [];
           for (let i = 0; i < this.data.count; i++) {
             let el = document.createElement('a-entity');
-            el.setAttribute('geometry', 'primitive: plane; width: 0.002; height: 0.08');
-            el.setAttribute('material', 'color: #aaccff; shader: flat; transparent: true; opacity: 0.5');
+            // 変更点1: 雨粒（線）を太く、長くして視認性を高める（モーションブラーのような表現）
+            el.setAttribute('geometry', 'primitive: plane; width: 0.006; height: 0.15');
+            // 変更点2: 不透明度(opacity)を0.8に上げ、くっきりとさせる。色は少し白に近づける
+            el.setAttribute('material', 'color: #e0f0ff; shader: flat; transparent: true; opacity: 0.8');
             this.el.appendChild(el);
             this.drops.push({
               el: el, x: (Math.random() - 0.5) * this.data.area, z: (Math.random() - 0.5) * this.data.area,
-              y: Math.random() * 2, speed: Math.random() * 0.03 + 0.02
+              y: Math.random() * 2, 
+              // 変更点3: 落下スピードを上げて、ザーッと降る雨の躍動感を出す
+              speed: Math.random() * 0.06 + 0.04
             });
           }
         },
         tick: function () {
           this.drops.forEach(p => {
-            p.y -= p.speed; if (p.y < -0.5) { p.y = 1.5; p.x = (Math.random() - 0.5) * this.data.area; p.z = (Math.random() - 0.5) * this.data.area; }
+            p.y -= p.speed; 
+            if (p.y < -0.5) { 
+              p.y = 1.5; 
+              p.x = (Math.random() - 0.5) * this.data.area; 
+              p.z = (Math.random() - 0.5) * this.data.area; 
+            }
             p.el.setAttribute('position', `${p.x} ${p.y} ${p.z}`);
           });
         }
@@ -346,7 +355,7 @@
           <a-gltf-model src="#orizuruModel" position="0 0 0.1" scale="0.1 0.1 0.1" animation-mixer></a-gltf-model>
           
           <a-entity id="effect-clear" petal-system="count: 40; area: 0.8;" visible="true"></a-entity>
-          <a-entity id="effect-rain" rain-system="count: 100; area: 0.8;" visible="false"></a-entity>
+          <a-entity id="effect-rain" rain-system="count: 250; area: 1.2;" visible="false"></a-entity>
           <a-entity id="effect-snow" snow-system="count: 80; area: 0.8;" visible="false"></a-entity>
 
         </a-entity>
