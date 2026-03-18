@@ -1,0 +1,10 @@
+# 環境変数・APIキーを含むファイルを除外
+env.js
+
+# OSが生成する一時ファイルを除外
+.DS_Store
+Thumbs.db
+
+# (もし今後使うなら) node_modulesなども
+node_modules/
+.env
