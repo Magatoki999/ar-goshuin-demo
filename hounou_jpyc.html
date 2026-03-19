@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>御朱印AR 奉納システム ひな形</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold: #D4AF37;
+      --gold-light: #f0d060;
+      --gold-dim: rgba(212,175,55,0.15);
+      --ink: #1a1208;
+      --parchment: #fdf6e3;
+      --vermillion: #C73D2C;
+      --deep: #0d0a04;
+      --muted: rgba(255,255,255,0.5);
+      --border: rgba(212,175,55,0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--deep);
+      color: #fff;
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════════
+       タブナビ
+    ═══════════════════════════════════════ */
+    .tab-nav {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.6);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .tab-nav button {
+      flex: 1; padding: 14px 8px;
+      background: none; border: none;
+      color: var(--muted); font-size: 13px;
+      font-family: 'Noto Sans JP', sans-serif;
+      cursor: pointer; transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+      letter-spacing: 1px;
+    }
+    .tab-nav button.active {
+      color: var(--gold);
+      border-bottom-color: var(--gold);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ═══════════════════════════════════════
+       ① ユーザー向け：奉納モーダル
+    ═══════════════════════════════════════ */
+    .user-panel {
+      max-width: 420px; margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    .panel-label {
+      text-align: center; font-size: 11px;
+      letter-spacing: 3px; color: var(--muted);
+      margin-bottom: 32px; padding-top: 8px;
+    }
+
+    /* 参拝証プレビュー（AR画面のモック） */
+    .ar-preview {
+      background: linear-gradient(160deg, #1a1208, #2a1f0a);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ar-preview::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at center, rgba(212,175,55,0.05) 0%, transparent 70%);
+    }
+    .ar-preview .stamp-title {
+      font-family: 'Kaisei Decol', serif;
+      font-size: 22px; color: var(--gold);
+      letter-spacing: 4px; margin-bottom: 8px;
+    }
+    .ar-preview .stamp-date {
+      font-size: 12px; color: var(--muted);
+      letter-spacing: 1px;
+    }
+    .ar-preview .stamp-icon {
+      font-size: 48px; margin: 16px 0;
+      filter: drop-shadow(0 0 12px rgba(212,175,55,0.4));
+    }
+
+    /* 奉納セクション */
+    .hounou-section {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 20px;
+    }
+
+    .hounou-heading {
+      font-family: 'Kaisei Decol', serif;
+      font-size: 17px; color: var(--gold);
+      text-align: center; letter-spacing: 3px;
+      margin-bottom: 6px;
+    }
+    .hounou-sub {
+      font-size: 11px; color: var(--muted);
+      text-align: center; letter-spacing: 1px;
+      margin-bottom: 20px;
+    }
+
+    /* 金額ボタン */
+    .amount-grid {
+      display: grid; grid-template-columns: repeat(3,1fr);
+      gap: 8px; margin-bottom: 16px;
+    }
+    .amount-btn {
+      background: var(--gold-dim);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--gold);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 14px; font-weight: 500;
+      padding: 14px 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 1px;
+    }
+    .amount-btn:hover, .amount-btn.selected {
+      background: var(--gold);
+      color: var(--ink);
+      border-color: var(--gold);
+    }
+    .amount-btn .yen { font-size: 11px; opacity: 0.7; display: block; margin-top: 2px; }
+
+    /* カスタム金額 */
+    .custom-amount {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 20px;
+    }
+    .custom-amount input {
+      flex: 1; background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border); border-radius: 10px;
+      color: #fff; font-size: 15px;
+      font-family: 'Noto Sans JP', sans-serif;
+      padding: 12px 16px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .custom-amount input:focus { border-color: var(--gold); }
+    .custom-amount input::placeholder { color: rgba(255,255,255,0.3); }
+    .custom-amount span { color: var(--muted); font-size: 14px; white-space: nowrap; }
+
+    /* 決済方法 */
+    .payment-methods {
+      display: flex; gap: 8px; margin-bottom: 20px;
+    }
+    .pay-method {
+      flex: 1; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 12px 8px;
+      text-align: center; cursor: pointer;
+      transition: all 0.2s; font-size: 12px;
+      color: rgba(255,255,255,0.6);
+    }
+    .pay-method.selected {
+      border-color: var(--gold);
+      background: var(--gold-dim);
+      color: #fff;
+    }
+    .pay-method .pay-icon { font-size: 20px; display: block; margin-bottom: 4px; }
+
+    /* 奉納ボタン */
+    .hounou-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #b8962e, var(--gold), #e8c840, var(--gold));
+      background-size: 200% 200%;
+      animation: shimmer 3s ease infinite;
+      border: none; border-radius: 12px;
+      color: var(--ink); font-weight: 700;
+      font-family: 'Kaisei Decol', serif;
+      font-size: 17px; letter-spacing: 3px;
+      padding: 18px;
+      cursor: pointer; transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(212,175,55,0.3);
+    }
+    .hounou-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 28px rgba(212,175,55,0.4);
+    }
+    .hounou-btn:active { transform: translateY(0); }
+
+    @keyframes shimmer {
+      0%,100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    /* 注記 */
+    .hounou-note {
+      margin-top: 14px;
+      font-size: 11px; color: rgba(255,255,255,0.3);
+      text-align: center; line-height: 1.7; letter-spacing: 0.5px;
+    }
+
+    /* 完了画面 */
+    .complete-view {
+      display: none; text-align: center;
+      padding: 32px 20px;
+      animation: fadeIn 0.5s ease;
+    }
+    .complete-view.show { display: block; }
+    .complete-icon { font-size: 56px; margin-bottom: 16px; }
+    .complete-title {
+      font-family: 'Kaisei Decol', serif;
+      font-size: 22px; color: var(--gold);
+      letter-spacing: 4px; margin-bottom: 12px;
+    }
+    .complete-msg {
+      font-size: 13px; color: var(--muted);
+      line-height: 2; letter-spacing: 1px;
+    }
+    .txid-box {
+      margin-top: 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px;
+      text-align: left;
+    }
+    .txid-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 6px; }
+    .txid-value { font-size: 11px; color: rgba(255,255,255,0.5); word-break: break-all; font-family: monospace; }
+    .txid-note { font-size: 10px; color: rgba(212,175,55,0.5); margin-top: 6px; }
+
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+
+    /* ═══════════════════════════════════════
+       ② 管理者ダッシュボード
+    ═══════════════════════════════════════ */
+    .admin-panel {
+      max-width: 680px; margin: 0 auto;
+      padding: 24px 16px 60px;
+    }
+
+    .admin-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .admin-title {
+      font-family: 'Kaisei Decol', serif;
+      font-size: 18px; color: var(--gold); letter-spacing: 3px;
+    }
+    .admin-badge {
+      font-size: 10px; background: var(--gold-dim);
+      border: 1px solid var(--border);
+      color: var(--gold); padding: 4px 10px;
+      border-radius: 20px; letter-spacing: 1px;
+    }
+
+    /* KPIカード */
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      gap: 10px; margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px;
+    }
+    .kpi-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 8px; }
+    .kpi-value { font-size: 26px; font-weight: 300; color: #fff; }
+    .kpi-value span { font-size: 13px; color: var(--gold); margin-left: 4px; }
+    .kpi-sub { font-size: 11px; color: rgba(212,175,55,0.5); margin-top: 4px; }
+
+    /* JPYC残高カード */
+    .jpyc-balance {
+      background: linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.05));
+      border: 1px solid rgba(212,175,55,0.4);
+      border-radius: 14px; padding: 20px;
+      margin-bottom: 24px;
+      position: relative; overflow: hidden;
+    }
+    .jpyc-balance::after {
+      content: 'JPYC';
+      position: absolute; right: 16px; top: 50%;
+      transform: translateY(-50%);
+      font-family: 'Kaisei Decol', serif;
+      font-size: 48px; color: rgba(212,175,55,0.08);
+      font-weight: 700; letter-spacing: 2px;
+    }
+    .jpyc-label { font-size: 11px; color: var(--gold); letter-spacing: 2px; margin-bottom: 8px; }
+    .jpyc-amount { font-size: 36px; font-weight: 300; }
+    .jpyc-amount em { font-style: normal; font-size: 18px; color: var(--gold); margin-left: 6px; }
+    .jpyc-addr { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 10px; font-family: monospace; }
+    .jpyc-chain { 
+      display: inline-block; font-size: 10px;
+      background: rgba(130,71,229,0.2); border: 1px solid rgba(130,71,229,0.4);
+      color: #a78bfa; padding: 2px 8px; border-radius: 10px;
+      margin-top: 6px; letter-spacing: 1px;
+    }
+
+    /* 取引履歴 */
+    .section-title {
+      font-size: 11px; color: var(--muted);
+      letter-spacing: 3px; margin-bottom: 12px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+
+    .tx-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .tx-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px; padding: 14px;
+      display: flex; align-items: center; gap: 12px;
+      transition: border-color 0.2s;
+    }
+    .tx-item:hover { border-color: var(--border); }
+
+    .tx-icon {
+      width: 36px; height: 36px;
+      background: var(--gold-dim); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .tx-info { flex: 1; min-width: 0; }
+    .tx-method { font-size: 12px; color: #fff; font-weight: 500; }
+    .tx-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .tx-txid { font-size: 10px; color: rgba(255,255,255,0.2); font-family: monospace; 
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+    .tx-amount { text-align: right; flex-shrink: 0; }
+    .tx-yen { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .tx-jpyc { font-size: 14px; color: var(--gold); font-weight: 500; margin-top: 2px; }
+    .tx-status {
+      font-size: 10px; padding: 2px 8px; border-radius: 10px;
+      display: inline-block; margin-top: 4px; letter-spacing: 1px;
+    }
+    .tx-status.confirmed {
+      background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3);
+    }
+    .tx-status.pending {
+      background: rgba(234,179,8,0.15); color: #facc15; border: 1px solid rgba(234,179,8,0.3);
+    }
+
+    /* ③ 実装メモパネル */
+    .impl-panel {
+      max-width: 680px; margin: 0 auto;
+      padding: 24px 16px 60px;
+    }
+
+    .impl-block {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+      margin-bottom: 16px;
+    }
+    .impl-block h3 {
+      font-size: 13px; color: var(--gold);
+      letter-spacing: 2px; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .impl-block h3 .step-num {
+      width: 22px; height: 22px; background: var(--gold);
+      color: var(--ink); border-radius: 50%;
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .impl-block p {
+      font-size: 12px; color: rgba(255,255,255,0.6);
+      line-height: 1.9; letter-spacing: 0.5px;
+    }
+    .impl-block code {
+      display: block; margin-top: 12px;
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; padding: 14px;
+      font-size: 11px; color: #a5d8a5;
+      font-family: 'Courier New', monospace; line-height: 1.8;
+      white-space: pre-wrap;
+    }
+    .impl-tag {
+      display: inline-block; font-size: 10px;
+      padding: 2px 8px; border-radius: 10px;
+      letter-spacing: 1px; margin-right: 6px; margin-top: 8px;
+    }
+    .tag-user { background: rgba(99,179,237,0.15); color: #63b3ed; border: 1px solid rgba(99,179,237,0.3); }
+    .tag-server { background: rgba(154,205,90,0.15); color: #9acd5a; border: 1px solid rgba(154,205,90,0.3); }
+    .tag-chain { background: rgba(130,71,229,0.15); color: #a78bfa; border: 1px solid rgba(130,71,229,0.3); }
+    .tag-mock { background: rgba(251,146,60,0.15); color: #fb923c; border: 1px solid rgba(251,146,60,0.3); }
+
+    /* 区切り */
+    .flow-arrow {
+      text-align: center; color: rgba(212,175,55,0.4);
+      font-size: 20px; margin: -4px 0;
+    }
+
+    /* ローディング */
+    .loading-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85); z-index: 200;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px;
+    }
+    .loading-overlay.show { display: flex; }
+    .loading-spinner {
+      width: 48px; height: 48px;
+      border: 3px solid rgba(212,175,55,0.2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-family: 'Kaisei Decol', serif;
+      font-size: 15px; color: var(--gold); letter-spacing: 3px;
+    }
+    .loading-sub { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+  </style>
+</head>
+<body>
+
+<!-- タブナビ -->
+<nav class="tab-nav">
+  <button class="active" onclick="switchTab('user')">🌸 ユーザー画面</button>
+  <button onclick="switchTab('admin')">⛩️ 管理ダッシュボード</button>
+  <button onclick="switchTab('impl')">📋 実装メモ</button>
+</nav>
+
+<!-- ローディング演出 -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">奉納処理中</div>
+  <div class="loading-sub">安全に送信しています…</div>
+</div>
+
+
+<!-- ═══ ① ユーザー画面 ═══ -->
+<div class="tab-panel active" id="tab-user">
+  <div class="user-panel">
+    <div class="panel-label">※ このタブはARアプリの result-modal 内に組み込むUI</div>
+
+    <!-- 参拝証プレビュー -->
+    <div class="ar-preview">
+      <div class="stamp-title">参拝之証</div>
+      <div class="stamp-icon">🕊️</div>
+      <div class="stamp-date" id="previewDate"></div>
+    </div>
+
+    <!-- 奉納フォーム -->
+    <div class="hounou-section" id="hounou-form">
+      <div class="hounou-heading">ご縁を結ぶ</div>
+      <div class="hounou-sub">— 奉納金額をお選びください —</div>
+
+      <div class="amount-grid">
+        <button class="amount-btn" onclick="selectAmount(100, this)">
+          百円<span class="yen">¥100</span>
+        </button>
+        <button class="amount-btn selected" onclick="selectAmount(500, this)">
+          五百円<span class="yen">¥500</span>
+        </button>
+        <button class="amount-btn" onclick="selectAmount(1000, this)">
+          千円<span class="yen">¥1,000</span>
+        </button>
+        <button class="amount-btn" onclick="selectAmount(3000, this)">
+          三千円<span class="yen">¥3,000</span>
+        </button>
+        <button class="amount-btn" onclick="selectAmount(5000, this)">
+          五千円<span class="yen">¥5,000</span>
+        </button>
+        <button class="amount-btn" onclick="selectAmount(10000, this)">
+          一万円<span class="yen">¥10,000</span>
+        </button>
+      </div>
+
+      <div class="custom-amount">
+        <input type="number" id="customInput" placeholder="任意の金額" min="100"
+               oninput="setCustomAmount(this.value)">
+        <span>円</span>
+      </div>
+
+      <div class="payment-methods">
+        <div class="pay-method selected" onclick="selectMethod(this, 'card')" title="クレジットカード">
+          <span class="pay-icon">💳</span>カード
+        </div>
+        <div class="pay-method" onclick="selectMethod(this, 'apple')" title="Apple Pay">
+          <span class="pay-icon"> </span>Apple Pay
+        </div>
+        <div class="pay-method" onclick="selectMethod(this, 'google')" title="Google Pay">
+          <span class="pay-icon">G</span>Google Pay
+        </div>
+        <div class="pay-method" onclick="selectMethod(this, 'paypay')" title="PayPay">
+          <span class="pay-icon">🟡</span>PayPay
+        </div>
+      </div>
+
+      <button class="hounou-btn" onclick="doHounou()">
+        ご奉納する
+      </button>
+
+      <div class="hounou-note">
+        ご奉納いただいた金額は神社の維持・保全活動に充てられます。<br>
+        決済情報はStripe（国際標準PCI-DSS準拠）で保護されます。<br>
+        ブロックチェーン技術により奉納記録を永続保存します。
+      </div>
+    </div>
+
+    <!-- 完了画面 -->
+    <div class="complete-view" id="complete-view">
+      <div class="complete-icon">🌸</div>
+      <div class="complete-title">奉納が完了しました</div>
+      <div class="complete-msg">
+        ご篤志、誠にありがとうございます。<br>
+        お参りの記録は永久に刻まれました。
+      </div>
+      <div class="txid-box">
+        <div class="txid-label">奉納証明 ID</div>
+        <div class="txid-value" id="txidValue">—</div>
+        <div class="txid-note">※ このIDでいつでも奉納記録を確認できます</div>
+      </div>
+      <button class="hounou-btn" style="margin-top:24px;" onclick="resetForm()">
+        もう一度
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ ② 管理ダッシュボード ═══ -->
+<div class="tab-panel" id="tab-admin">
+  <div class="admin-panel">
+    <div class="admin-header">
+      <div class="admin-title">奉納管理</div>
+      <div class="admin-badge">管理者専用</div>
+    </div>
+
+    <!-- KPI -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">今月の奉納総額</div>
+        <div class="kpi-value">128,500<span>円</span></div>
+        <div class="kpi-sub">= 128,500 JPYC</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">奉納件数（今月）</div>
+        <div class="kpi-value">47<span>件</span></div>
+        <div class="kpi-sub">平均 2,734円 / 件</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">AR認識→奉納 転換率</div>
+        <div class="kpi-value">18.3<span>%</span></div>
+        <div class="kpi-sub">先月比 +2.1%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">累計奉納総額</div>
+        <div class="kpi-value">512,200<span>円</span></div>
+        <div class="kpi-sub">運用開始から</div>
+      </div>
+    </div>
+
+    <!-- JPYC残高 -->
+    <div class="jpyc-balance">
+      <div class="jpyc-label">神社ウォレット JPYC 残高</div>
+      <div class="jpyc-amount">512,200<em>JPYC</em></div>
+      <div class="jpyc-chain">Polygon PoS</div>
+      <div class="jpyc-addr">0x7f3a…c4d2 （神社公式ウォレット）</div>
+    </div>
+
+    <!-- 取引履歴 -->
+    <div class="section-title">最近の奉納履歴</div>
+    <div class="tx-list">
+
+      <div class="tx-item">
+        <div class="tx-icon">💳</div>
+        <div class="tx-info">
+          <div class="tx-method">クレジットカード</div>
+          <div class="tx-time">2026/03/18 14:32</div>
+          <div class="tx-txid">0xab3f…8812</div>
+        </div>
+        <div class="tx-amount">
+          <div class="tx-yen">¥500</div>
+          <div class="tx-jpyc">500 JPYC</div>
+          <span class="tx-status confirmed">確認済</span>
+        </div>
+      </div>
+
+      <div class="tx-item">
+        <div class="tx-icon"> </div>
+        <div class="tx-info">
+          <div class="tx-method">Apple Pay</div>
+          <div class="tx-time">2026/03/18 11:05</div>
+          <div class="tx-txid">0xcd91…3341</div>
+        </div>
+        <div class="tx-amount">
+          <div class="tx-yen">¥1,000</div>
+          <div class="tx-jpyc">1,000 JPYC</div>
+          <span class="tx-status confirmed">確認済</span>
+        </div>
+      </div>
+
+      <div class="tx-item">
+        <div class="tx-icon">🟡</div>
+        <div class="tx-info">
+          <div class="tx-method">PayPay</div>
+          <div class="tx-time">2026/03/18 09:18</div>
+          <div class="tx-txid">0xef22…7790</div>
+        </div>
+        <div class="tx-amount">
+          <div class="tx-yen">¥3,000</div>
+          <div class="tx-jpyc">3,000 JPYC</div>
+          <span class="tx-status confirmed">確認済</span>
+        </div>
+      </div>
+
+      <div class="tx-item">
+        <div class="tx-icon">💳</div>
+        <div class="tx-info">
+          <div class="tx-method">クレジットカード（海外）</div>
+          <div class="tx-time">2026/03/18 08:44</div>
+          <div class="tx-txid">0x1a4b…cc03</div>
+        </div>
+        <div class="tx-amount">
+          <div class="tx-yen">¥5,000</div>
+          <div class="tx-jpyc">5,000 JPYC</div>
+          <span class="tx-status pending">処理中</span>
+        </div>
+      </div>
+
+      <div class="tx-item">
+        <div class="tx-icon">G</div>
+        <div class="tx-info">
+          <div class="tx-method">Google Pay</div>
+          <div class="tx-time">2026/03/17 16:22</div>
+          <div class="tx-txid">0x8823…fa51</div>
+        </div>
+        <div class="tx-amount">
+          <div class="tx-yen">¥500</div>
+          <div class="tx-jpyc">500 JPYC</div>
+          <span class="tx-status confirmed">確認済</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ ③ 実装メモ ═══ -->
+<div class="tab-panel" id="tab-impl">
+  <div class="impl-panel">
+
+    <div class="impl-block">
+      <h3><span class="step-num">1</span>ユーザーが触る部分</h3>
+      <span class="impl-tag tag-user">フロントエンド</span>
+      <span class="impl-tag tag-mock">このひな形</span>
+      <p>
+        ARで参拝証キャプチャ後、result-modal 内に「ご縁を結ぶ」セクションを追加。
+        円建てで金額を選ぶだけ。ウォレット・ブロックチェーンの概念は一切見せない。
+        決済UIはStripe Elementsで本番実装。
+      </p>
+    </div>
+
+    <div class="flow-arrow">↓</div>
+
+    <div class="impl-block">
+      <h3><span class="step-num">2</span>バックエンドサーバー（要実装）</h3>
+      <span class="impl-tag tag-server">サーバーサイド</span>
+      <p>
+        Stripe Webhookで決済完了を受信 → JPYC送金APIを呼び出す。
+        現時点ではJPYCの直接送金APIは非公開のため、
+        運営者ウォレットから神社ウォレットへ手動 or バッチ送金する実装が現実的。
+      </p>
+      <code>// 疑似コード（Node.js / Edge Function）
+app.post('/webhook/stripe', async (req) => {
+  const event = stripe.webhooks.constructEvent(...)
+  if (event.type === 'payment_intent.succeeded') {
+    const amountJpy = event.data.object.amount  // 例: 500
+    
+    // JPYC送金（1JPY = 1JPYC）
+    await sendJPYC({
+      to: SHRINE_WALLET_ADDRESS,   // 神社ウォレット
+      amount: amountJpy,           // JPYCはJPY建て
+      memo: `御朱印AR奉納 ${new Date().toISOString()}`
+    })
+    
+    // TX IDをDBに保存 → フロントに返す
+    await db.save({ txid, amount, timestamp })
+  }
+})</code>
+    </div>
+
+    <div class="flow-arrow">↓</div>
+
+    <div class="impl-block">
+      <h3><span class="step-num">3</span>JPYCオンチェーン記録</h3>
+      <span class="impl-tag tag-chain">Polygon PoS</span>
+      <p>
+        JPYC（ERC-20）がPolygon上で神社ウォレットに着金。
+        Polygonscanで誰でも確認可能な透明な奉納記録になる。
+        神社側はJPYCを円に換金する場合、JPYC公式の換金フローを利用。
+      </p>
+      <code>// JPYCコントラクト（Polygon）
+// アドレス: 0x431D5dfF03120AFA4bDf332c61A6e1766eF37BF6
+
+// ethers.js での送金例
+const jpyc = new ethers.Contract(JPYC_ADDRESS, ERC20_ABI, signer)
+await jpyc.transfer(SHRINE_WALLET, ethers.parseUnits(amount.toString(), 18))</code>
+    </div>
+
+    <div class="flow-arrow">↓</div>
+
+    <div class="impl-block">
+      <h3><span class="step-num">4</span>このひな形に差し替えるもの</h3>
+      <span class="impl-tag tag-mock">差し替えポイント</span>
+      <p>
+        ① Stripe の publishable key → 本物のキーに差し替え<br>
+        ② doHounou() 関数 → Stripe Payment Intent APIを呼び出す処理に変更<br>
+        ③ 管理ダッシュボードのデータ → DBから取得するAPIに接続<br>
+        ④ 神社ウォレットアドレス → 実際のアドレスに設定<br>
+        ⑤ sendLog() に 'hounou' イベントを追加 → 既存のGoogleフォームログと統合
+      </p>
+    </div>
+
+    <div class="impl-block" style="border-color: rgba(251,146,60,0.4);">
+      <h3 style="color: #fb923c;">⚠️ 現時点の制約</h3>
+      <p>
+        JPYCへの円→JPYC自動変換APIは2026年3月現在、一般公開されていない。<br>
+        現実的な実装は「Stripeで円受取 → 運営者が定期的にJPYCに換えて神社ウォレットへ送金」。<br>
+        JPYC社へのAPI連携交渉 or JPYC Payの加盟店登録が揃えばフル自動化が可能。
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let selectedAmount = 500;
+  let selectedPayMethod = 'card';
+
+  // タブ切り替え
+  function switchTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // 日付表示
+  function formatDate(d) {
+    return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+  document.getElementById('previewDate').textContent = formatDate(new Date());
+
+  // 金額選択
+  function selectAmount(val, btn) {
+    selectedAmount = val;
+    document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('customInput').value = '';
+  }
+
+  function setCustomAmount(val) {
+    if (val && parseInt(val) > 0) {
+      selectedAmount = parseInt(val);
+      document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('selected'));
+    }
+  }
+
+  // 決済方法選択
+  function selectMethod(el, method) {
+    selectedPayMethod = method;
+    document.querySelectorAll('.pay-method').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  // 奉納処理（モック）
+  function doHounou() {
+    if (!selectedAmount || selectedAmount < 100) {
+      alert('100円以上の金額をご指定ください');
+      return;
+    }
+
+    // ローディング表示
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.classList.add('show');
+
+    // 本番ではここでStripe Payment Intent APIを呼び出す
+    // ↓ モック：2秒後に完了
+    setTimeout(() => {
+      overlay.classList.remove('show');
+
+      // ダミーTX ID生成
+      const txid = '0x' + Array.from({length: 40}, () =>
+        Math.floor(Math.random()*16).toString(16)).join('');
+
+      document.getElementById('txidValue').textContent = txid;
+      document.getElementById('hounou-form').style.display = 'none';
+      document.getElementById('complete-view').classList.add('show');
+
+      // 既存ARログと統合（本番では sendLog('hounou') に追加）
+      console.log('[奉納ログ]', { amount: selectedAmount, method: selectedPayMethod, txid });
+    }, 2200);
+  }
+
+  // リセット
+  function resetForm() {
+    document.getElementById('hounou-form').style.display = 'block';
+    document.getElementById('complete-view').classList.remove('show');
+    selectedAmount = 500;
+    document.querySelectorAll('.amount-btn').forEach((b,i) => {
+      b.classList.toggle('selected', i === 1);
+    });
+  }
+</script>
+</body>
+</html>
